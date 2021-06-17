@@ -245,7 +245,7 @@ export default class Editor {
       this.deleteLine(y);
       const len = this.content[y - 1].length;
       this.setLine(this.content[y - 1] + p1 + p2, y - 1);
-      this.setCursor(len);
+      this.setCursor(len, y - 1);
     }
   }
 
@@ -264,7 +264,7 @@ export default class Editor {
     stdout.write((lineIndex + 1).toString() + " ".repeat(this.indention - numLen - 2) + "|")
     this.setCursor(0, lineIndex);
     stdout.clearLine(1);
-    // write(lineContent);
+
     let ext = Path.extname(this.filePath).substring(1);
     if (ext in Syntax && typeof (Syntax as any)[ext] === "function") stdout.write((Syntax as any)[ext](lineContent));
     else stdout.write(lineContent);

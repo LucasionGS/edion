@@ -9,7 +9,7 @@ import Syntax from "./Syntax";
 const { stdin, stdout } = process;
 
 export default class Editor {
-  constructor(private filePath: string) {
+constructor(private filePath: string) {
     this.filePath = filePath = Path.resolve(this.filePath);
     if (fs.existsSync(filePath)) {
       this.content = fs.readFileSync(filePath, "utf-8").split(/\r\n|\n/);
@@ -19,8 +19,6 @@ export default class Editor {
       this.content = [""]
       this.setMessage("New File");
     }
-
-{d}
 
     keypress(process.stdin);
 

@@ -210,7 +210,7 @@ class Editor {
             this.deleteLine(y);
             const len = this.content[y - 1].length;
             this.setLine(this.content[y - 1] + p1 + p2, y - 1);
-            this.setCursor(len);
+            this.setCursor(len, y - 1);
         }
     }
     delete(x = this.cursor.x, y = this.cursor.y) {
@@ -227,7 +227,6 @@ class Editor {
         stdout.write((lineIndex + 1).toString() + " ".repeat(this.indention - numLen - 2) + "|");
         this.setCursor(0, lineIndex);
         stdout.clearLine(1);
-        // write(lineContent);
         let ext = path_1.default.extname(this.filePath).substring(1);
         if (ext in Syntax_1.default && typeof Syntax_1.default[ext] === "function")
             stdout.write(Syntax_1.default[ext](lineContent));
