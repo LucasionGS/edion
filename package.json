@@ -1,0 +1,20 @@
+{
+  "name": "edion",
+  "version": "1.0.0",
+  "main": "dist/main.js",
+  "bin": {
+    "edion": "dist/bin/cli.js"
+  },
+  "scripts": {
+    "edion": "node dist/bin/cli.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/node": "^15.12.2"
+  },
+  "dependencies": {
+    "keypress": "^0.2.1"
+  }
+}

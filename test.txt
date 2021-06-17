@@ -1,0 +1,6 @@
+{
+  "object1": "hello",
+  "object2": "dads",
+  "ddd": "@you",
+  "object3": "lmao™"
+}
