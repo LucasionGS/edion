@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "dist/main.js",
   "bin": {
-    "edion": "dist/bin/cli.js"
+    "edi": "dist/bin/cli.js"
   },
   "scripts": {
     "edion": "node dist/bin/cli.js"

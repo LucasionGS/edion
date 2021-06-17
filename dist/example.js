@@ -64,58 +64,58 @@ class Editor {
                     && (key.name === "up"
                         || key.name === "down"))
                     this.moveLine(this.cursor.y, key.name);
-            }
-            // Arrow keys to move around
-            else if (!key.shift
-                && (key.name === "up"
-                    || key.name === "down"
-                    || key.name === "left"
-                    || key.name === "right"))
-                this.moveCursor(key.name);
-            // Any standard character
-            else if (key.name.length === 1) {
-                this.append(key.shift ? key.name.toUpperCase() : key.name);
-            }
-            // Special buttons
-            else {
-                const line = this.content[this.cursor.y];
-                switch (key.name) {
-                    case "backspace":
-                        if (line === "") {
-                            this.deleteLine();
-                            break;
-                        }
-                        this.backspace();
-                        break;
-                    case "delete":
-                        if (key.ctrl) {
-                            this.deleteLine(this.cursor.y);
-                            break;
-                        }
-                        this.delete();
-                        break;
-                    case "return":
-                        this.enter();
-                        break;
-                    case "space":
-                        this.append(" ");
-                        break;
-                    case "tab":
-                        this.append("  ");
-                        break;
-                    case "home":
-                        this.setCursor(0);
-                        break;
-                    case "end":
-                        this.setCursor(line.length);
-                        break;
-                    default:
-                        break;
+                // Arrow keys to move a
+                else if (!key.shift
+                    && (key.name === "up"
+                        || key.name === "down"
+                        || key.name === "left"
+                        || key.name === "right"))
+                    this.moveCursor(key.name);
+                // Any standard character
+                else if (key.name.length === 1) {
+                    this.append(key.shift ? key.name.toUpperCase() : key.name);
                 }
-            }
-            if (this.justSaved) {
-                this.justSaved = false;
-                this.setMessage();
+                // Special buttons
+                else {
+                    const line = this.content[this.cursor.y];
+                    switch (key.name) {
+                        case "backspace":
+                            if (line === "") {
+                                this.deleteLine();
+                                break;
+                            }
+                            this.backspace();
+                            break;
+                        case "delete":
+                            if (key.ctrl) {
+                                this.deleteLine(this.cursor.y);
+                                break;
+                            }
+                            this.delete();
+                            break;
+                        case "return":
+                            this.enter();
+                            break;
+                        case "space":
+                            this.append(" ");
+                            break;
+                        case "tab":
+                            this.append("  ");
+                            break;
+                        case "home":
+                            this.setCursor(0);
+                            break;
+                        case "end":
+                            this.setCursor(line.length);
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                if (this.justSaved) {
+                    this.justSaved = false;
+                    this.setMessage();
+                }
             }
         });
     }

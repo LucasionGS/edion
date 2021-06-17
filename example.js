@@ -20,7 +20,11 @@ export default class Editor {
       this.setMessage("New File");
     }
 
+{d}
+
     keypress(process.stdin);
+
+    /*d*/
 
     // var stdin = process.openStdin(); 
     // stdin.setEncoding("utf-8");
@@ -259,7 +263,7 @@ export default class Editor {
   }
 
   public moveCursor(dir: "up" | "down" | "left" | "right") {
-    switch (dir) {
+    switch(dir) {
       case "up":
         // stdout.moveCursor(0, this.cursor.y > 0 ? -1 : 0);
         this.setCursor(this.cursor.x, --this.cursor.y);

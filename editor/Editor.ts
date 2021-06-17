@@ -2,7 +2,6 @@ import "colors";
 import fs from "fs";
 import Path from "path";
 import keypress from "keypress";
-import { write } from "../main";
 import os from "os";
 import Syntax from "./Syntax";
 
@@ -43,8 +42,8 @@ export default class Editor {
       else if (key.ctrl) {
         // Kill the process
         if (key.name == "q" || key.name == "c") {
-          this.setCursor(0, this.content.length);
-          stdout.moveCursor(0, 3);
+          stdout.cursorTo(0, 0);
+          stdout.clearScreenDown();
           process.exit()
         }
         if (key.name == "s") {
@@ -137,7 +136,13 @@ export default class Editor {
   private pageIndex = 0;
 
   public save() {
-    fs.writeFile(this.filePath, this.content.join(os.EOL), err => err ? this.setMessage(err.message) : this.setMessage("Saved file."));
+    const content = this.content.join(os.EOL);
+    fs.writeFile(
+      this.filePath,
+      content,
+      err => {
+        err ? this.setMessage(err.message) : this.setMessage(`Saved file - ${Buffer.byteLength(content)} bytes, ${this.content.length} lines, ${content.length} characters, `)
+      });
     this.justSaved = true;
   }
 
@@ -156,6 +161,9 @@ export default class Editor {
   private indention = 2;
   
   public render(content = this.content) {
+
+    process.title = `Edion | ${this.filePath}`;
+    
     this.indention = content.length.toString().length + 3; // 3 more for extra spacing
     const [w, h] = stdout.getWindowSize();
     this.width = w;
@@ -163,13 +171,10 @@ export default class Editor {
     const pageSize = this.pageSize = Math.floor(h - 6);
     stdout.cursorTo(0, 0);
     stdout.clearScreenDown();
-    stdout.write(`File: ${this.filePath}`);
-    
-    // if message
-    if (this.topMessage) stdout.write(` | ${this.topMessage}`);
+    this.renderTitle();
     
     stdout.cursorTo(0, 1);
-    stdout.write("-".repeat(w).bgGreen + "\n");
+    this.drawLine();
 
     stdout.cursorTo(0, 2);
     stdout.clearScreenDown();
@@ -179,13 +184,31 @@ export default class Editor {
     }
     stdout.cursorTo(0, pageSize + 3);
     // stdout.cursorTo(0, pageSize);
-    stdout.write("-".repeat(w).bgGreen + "\n");
-    this.setCursor(this.cursor.x, this.cursor.y);
+    this.drawLine();
+    this.setCursor();
+  }
+
+  /**
+   * Draw a line expanding the full width.
+   */
+  public drawLine() {
+    stdout.write("-".repeat(this.width).bgGreen + "\n");
   }
 
   public setMessage(msg: string = null) {
     this.topMessage = msg;
-    this.render();
+    this.renderTitle();
+  }
+
+  public renderTitle(title: string = `File: ${this.filePath}`) {
+    stdout.cursorTo(0, 0);
+    stdout.clearLine(1);
+    stdout.write(title);
+    
+    // if message
+    if (this.topMessage) stdout.write(` | ${this.topMessage}`);
+
+    this.setCursor();
   }
 
   private topMessage: string = null;
@@ -243,8 +266,8 @@ export default class Editor {
     stdout.clearLine(1);
     // write(lineContent);
     let ext = Path.extname(this.filePath).substring(1);
-    if (ext in Syntax && typeof (Syntax as any)[ext] === "function") write((Syntax as any)[ext](lineContent));
-    else write(lineContent);
+    if (ext in Syntax && typeof (Syntax as any)[ext] === "function") stdout.write((Syntax as any)[ext](lineContent));
+    else stdout.write(lineContent);
     this.content[lineIndex] = lineContent;
     this.setCursor(x, y);
   }
@@ -271,7 +294,7 @@ export default class Editor {
 
   private lastCursorX = 0;
 
-  public setCursor(x: number, y: number = this.cursor.y) {
+  public setCursor(x: number = this.cursor.x, y: number = this.cursor.y) {
 
     x = Math.max(0, x);
 

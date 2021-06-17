@@ -7,7 +7,6 @@ require("colors");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const keypress_1 = __importDefault(require("keypress"));
-const main_1 = require("../main");
 const os_1 = __importDefault(require("os"));
 const Syntax_1 = __importDefault(require("./Syntax"));
 const { stdin, stdout } = process;
@@ -53,8 +52,8 @@ class Editor {
             else if (key.ctrl) {
                 // Kill the process
                 if (key.name == "q" || key.name == "c") {
-                    this.setCursor(0, this.content.length);
-                    stdout.moveCursor(0, 3);
+                    stdout.cursorTo(0, 0);
+                    stdout.clearScreenDown();
                     process.exit();
                 }
                 if (key.name == "s") {
@@ -132,10 +131,14 @@ class Editor {
         });
     }
     save() {
-        fs_1.default.writeFile(this.filePath, this.content.join(os_1.default.EOL), err => err ? this.setMessage(err.message) : this.setMessage("Saved file."));
+        const content = this.content.join(os_1.default.EOL);
+        fs_1.default.writeFile(this.filePath, content, err => {
+            err ? this.setMessage(err.message) : this.setMessage(`Saved file - ${Buffer.byteLength(content)} bytes, ${this.content.length} lines, ${content.length} characters, `);
+        });
         this.justSaved = true;
     }
     render(content = this.content) {
+        process.title = `Edion | ${this.filePath}`;
         this.indention = content.length.toString().length + 3; // 3 more for extra spacing
         const [w, h] = stdout.getWindowSize();
         this.width = w;
@@ -143,12 +146,9 @@ class Editor {
         const pageSize = this.pageSize = Math.floor(h - 6);
         stdout.cursorTo(0, 0);
         stdout.clearScreenDown();
-        stdout.write(`File: ${this.filePath}`);
-        // if message
-        if (this.topMessage)
-            stdout.write(` | ${this.topMessage}`);
+        this.renderTitle();
         stdout.cursorTo(0, 1);
-        stdout.write("-".repeat(w).bgGreen + "\n");
+        this.drawLine();
         stdout.cursorTo(0, 2);
         stdout.clearScreenDown();
         for (let i = this.pageIndex * pageSize; i < Math.min(content.length, (this.pageIndex + 1) * pageSize); i++) {
@@ -157,12 +157,27 @@ class Editor {
         }
         stdout.cursorTo(0, pageSize + 3);
         // stdout.cursorTo(0, pageSize);
-        stdout.write("-".repeat(w).bgGreen + "\n");
-        this.setCursor(this.cursor.x, this.cursor.y);
+        this.drawLine();
+        this.setCursor();
+    }
+    /**
+     * Draw a line expanding the full width.
+     */
+    drawLine() {
+        stdout.write("-".repeat(this.width).bgGreen + "\n");
     }
     setMessage(msg = null) {
         this.topMessage = msg;
-        this.render();
+        this.renderTitle();
+    }
+    renderTitle(title = `File: ${this.filePath}`) {
+        stdout.cursorTo(0, 0);
+        stdout.clearLine(1);
+        stdout.write(title);
+        // if message
+        if (this.topMessage)
+            stdout.write(` | ${this.topMessage}`);
+        this.setCursor();
     }
     append(key, x = this.cursor.x, y = this.cursor.y) {
         const line = this.content[y];
@@ -215,9 +230,9 @@ class Editor {
         // write(lineContent);
         let ext = path_1.default.extname(this.filePath).substring(1);
         if (ext in Syntax_1.default && typeof Syntax_1.default[ext] === "function")
-            main_1.write(Syntax_1.default[ext](lineContent));
+            stdout.write(Syntax_1.default[ext](lineContent));
         else
-            main_1.write(lineContent);
+            stdout.write(lineContent);
         this.content[lineIndex] = lineContent;
         this.setCursor(x, y);
     }
@@ -239,7 +254,7 @@ class Editor {
         this.render();
         this.setCursor(x, y);
     }
-    setCursor(x, y = this.cursor.y) {
+    setCursor(x = this.cursor.x, y = this.cursor.y) {
         x = Math.max(0, x);
         y = Math.max(0, y);
         y = Math.min(this.content.length - 1, y);
