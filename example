@@ -13,7 +13,7 @@ export default class Editor {
     this.filePath = filePath = Path.resolve(this.filePath);
     if (fs.existsSync(filePath)) {
       this.content = fs.readFileSync(filePath, "utf-8").split(/\r\n|\n/);
-      this.render(this.content);
+      this.rewrite(this.content);
     }
     else {
       this.content = [""]
@@ -27,9 +27,10 @@ export default class Editor {
     stdin.setRawMode(true);
     stdin.resume();
 
-    stdout.on("resize", () => this.render());
+    stdout.on("resize", () => this.rewrite());
 
     stdin.on('keypress', (chunk: Buffer, key: KeyPress) => {
+
       // Errors
       if (!key) {
         if (typeof chunk === "undefined") return;
@@ -42,7 +43,7 @@ export default class Editor {
       // Control Special
       else if (key.ctrl) {
         // Kill the process
-        if (key.name == "q" || key.name == "c") {
+        if (key.name == "q") {
           this.setCursor(0, this.content.length);
           stdout.moveCursor(0, 3);
           process.exit()
@@ -59,29 +60,14 @@ export default class Editor {
           || key.name === "down")
         ) this.moveLine(this.cursor.y, key.name);
 
-      }
-
-      // Arrow keys to move around
+      // Arrow keys to move a
       else if (
-        (key.name === "up"
+        !key.shift
+        && (key.name === "up"
         || key.name === "down"
         || key.name === "left"
         || key.name === "right")
       ) this.moveCursor(key.name);
-
-      // Pg Up and Down
-      else if (
-        (key.name === "pageup"
-        || key.name === "pagedown")
-      ) {
-        const max = Math.floor(this.content.length / this.pageSize);
-        let nxPage = this.pageIndex + (key.name === "pagedown" ? 1 : -1);
-        nxPage = Math.min(max, Math.max(0, nxPage));
-        if (nxPage !== this.pageIndex) {
-          this.setCursor(0, nxPage * this.pageSize);
-          this.render();
-        }
-      }
         
       // Any standard character
       else if (key.name.length === 1) {
@@ -97,7 +83,7 @@ export default class Editor {
               this.deleteLine();
               break;
             }
-            this.backspace();
+                this.backspace();
             break;
           case "delete":
             if (key.ctrl) {
@@ -134,8 +120,6 @@ export default class Editor {
     });
   }
 
-  private pageIndex = 0;
-
   public save() {
     fs.writeFile(this.filePath, this.content.join(os.EOL), err => err ? this.setMessage(err.message) : this.setMessage("Saved file."));
     this.justSaved = true;
@@ -150,20 +134,11 @@ export default class Editor {
     y: 0
   }
 
-  private width: number;
-  private height: number;
-  private pageSize: number;
-  private indention = 2;
-  
-  public render(content = this.content) {
-    this.indention = content.length.toString().length + 3; // 3 more for extra spacing
+  public rewrite(content = this.content) {
     const [w, h] = stdout.getWindowSize();
-    this.width = w;
-    this.height = h;
-    const pageSize = this.pageSize = Math.floor(h - 6);
     stdout.cursorTo(0, 0);
     stdout.clearScreenDown();
-    stdout.write(`File: ${this.filePath}`);
+    stdout.write(`File: ${Path.resolve(this.filePath)}`);
     
     // if message
     if (this.topMessage) stdout.write(` | ${this.topMessage}`);
@@ -173,19 +148,19 @@ export default class Editor {
 
     stdout.cursorTo(0, 2);
     stdout.clearScreenDown();
-    for (let i = this.pageIndex * pageSize; i < Math.min(content.length, (this.pageIndex + 1) * pageSize); i++) {
-      const line = content[i];
-      this.setLine(line, i);
-    }
-    stdout.cursorTo(0, pageSize + 3);
-    // stdout.cursorTo(0, pageSize);
+    // write(content.join("\n"));
+    content.forEach((line, i) => this.setLine(line, i));
+    stdout.moveCursor(0, content.length - 1);
+
+    stdout.cursorTo(0);
+    stdout.moveCursor(0, 1);
     stdout.write("-".repeat(w).bgGreen + "\n");
     this.setCursor(this.cursor.x, this.cursor.y);
   }
 
   public setMessage(msg: string = null) {
     this.topMessage = msg;
-    this.render();
+    this.rewrite();
   }
 
   private topMessage: string = null;
@@ -206,7 +181,7 @@ export default class Editor {
     const p2 = line.substring(x);
     this.content = p1c.concat(p1, p2, ...p2c);
     // this.setLine(p2, y + 1);
-    this.render(this.content);
+    this.rewrite(this.content);
     this.setCursor(0, y + 1);
   }
 
@@ -236,10 +211,6 @@ export default class Editor {
   public setLine(lineContent: string, lineIndex = this.cursor.y) {
     const { x, y } = this.cursor;
     this.setCursor(0, lineIndex);
-    stdout.cursorTo(0);
-    const numLen = (lineIndex + 1).toString().length;
-    stdout.write((lineIndex + 1).toString() + " ".repeat(this.indention - numLen - 2) + "|")
-    this.setCursor(0, lineIndex);
     stdout.clearLine(1);
     // write(lineContent);
     let ext = Path.extname(this.filePath).substring(1);
@@ -265,7 +236,7 @@ export default class Editor {
     const { x, y } = this.cursor;
     this.content.splice(lineIndex, 1);
     if (this.content.length === 0) this.content.push("");
-    this.render();
+    this.rewrite();
     this.setCursor(x, y);
   }
 
@@ -273,12 +244,6 @@ export default class Editor {
 
   public setCursor(x: number, y: number = this.cursor.y) {
 
-    x = Math.max(0, x);
-
-    y = Math.max(0, y);
-    y = Math.min(this.content.length - 1, y);
-
-    
     const xTmp = Math.min(Math.max(0, x), this.content[y] ? this.content[y].length : 0);
     const yTmp = Math.min(Math.max(0, y), this.content.length - 1);
 
@@ -286,20 +251,10 @@ export default class Editor {
     this.cursor.x = xTmp;
     this.cursor.y = yTmp;
 
-    // Actual cords
-    const nextPageIndex = Math.floor(this.cursor.y / this.pageSize);
-    const [xReal, yReal] = [
-      this.indention + this.cursor.x,
-      (y % this.pageSize) + 2
-    ];
-    if (this.pageIndex != nextPageIndex) {
-      this.pageIndex = nextPageIndex;
-      this.render();
-    }
 
     stdout.cursorTo(
-      xReal,
-      yReal
+      this.cursor.x,
+      typeof y === "number" ? this.cursor.y + 2 : undefined
     );
   }
 
