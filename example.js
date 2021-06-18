@@ -6,10 +6,8 @@ import { write } from "../main";
 import os from "os";
 import Syntax from "./Syntax";
 
-const { stdin, stdout } = process;
-
 export default class Editor {
-constructor(private filePath: string) {
+constructor(filePath) {
     this.filePath = filePath = Path.resolve(this.filePath);
     if (fs.existsSync(filePath)) {
       this.content = fs.readFileSync(filePath, "utf-8").split(/\r\n|\n/);

@@ -8,7 +8,7 @@
   "scripts": {
     "edion": "node dist/bin/cli.js"
   },
-  "author": "",
+  "author": "Lucasion",
   "license": "ISC",
   "description": "",
   "devDependencies": {

@@ -10,11 +10,12 @@ const keypress_1 = __importDefault(require("keypress"));
 const os_1 = __importDefault(require("os"));
 const Syntax_1 = __importDefault(require("./Syntax"));
 const { stdin, stdout } = process;
+const args = process.argv.slice(2);
 class Editor {
-    constructor(filePath) {
+    constructor(filePath, args = []) {
         this.filePath = filePath;
         this.pageIndex = 0;
-        this.justSaved = false;
+        this.justSaved = true;
         this.content = [];
         this.cursor = {
             x: 0,
@@ -23,15 +24,17 @@ class Editor {
         this.indention = 2;
         this.topMessage = null;
         this.lastCursorX = 0;
+        // Parameters
+        this.DEBUG = args.includes("--debug");
         this.filePath = filePath = path_1.default.resolve(this.filePath);
         if (fs_1.default.existsSync(filePath)) {
             this.content = fs_1.default.readFileSync(filePath, "utf-8").split(/\r\n|\n/);
-            this.render(this.content);
         }
         else {
             this.content = [""];
             this.setMessage("New File");
         }
+        this.render(this.content);
         keypress_1.default(process.stdin);
         // var stdin = process.openStdin(); 
         // stdin.setEncoding("utf-8");
@@ -39,6 +42,8 @@ class Editor {
         stdin.resume();
         stdout.on("resize", () => this.render());
         stdin.on('keypress', (chunk, key) => {
+            if (this.DEBUG)
+                this.setMessage(JSON.stringify(key));
             // Errors
             if (!key) {
                 if (typeof chunk === "undefined")
@@ -48,29 +53,65 @@ class Editor {
                     this.append(char);
                 }
             }
-            // Control Special
-            else if (key.ctrl) {
-                // Kill the process
-                if (key.name == "q" || key.name == "c") {
+            // Kill the process
+            else if (key.ctrl && (key.name == "q")) {
+                if (this.justSaved) {
                     stdout.cursorTo(0, 0);
                     stdout.clearScreenDown();
                     process.exit();
                 }
-                if (key.name == "s") {
-                    this.save();
+                else {
+                    this.setMessage("CTRL+Q was pressed. There are possibly unsaved changes. Press CTRL+S to save first, or press CTRL+Q again to Quit without saving");
+                    this.justSaved = true;
                     return;
                 }
-                // Move line up and down
-                else if (!key.shift
-                    && (key.name === "up"
-                        || key.name === "down"))
-                    this.moveLine(this.cursor.y, key.name);
             }
+            // Kill the process
+            else if (key.ctrl && (key.name == "w")) {
+                this.save().then(() => {
+                    stdout.cursorTo(0, 0);
+                    stdout.clearScreenDown();
+                    process.exit();
+                }).catch((err) => {
+                    if (err) {
+                        this.setMessage(err);
+                    }
+                });
+            }
+            // Copy line
+            else if (key.ctrl && (key.name == "c")) {
+                this.clipboard = this.getCurrentLine();
+                this.setMessage("Copied line to temporary clipboard");
+            }
+            // Paste line
+            else if (key.ctrl && (key.name == "v")) {
+                if (typeof this.clipboard === "string") {
+                    const cur = this.getCurrentLine();
+                    this.enter(cur.length, this.getCurrentLineIndex());
+                    this.setLine(this.clipboard);
+                    this.setCursor(this.clipboard.length);
+                    this.setMessage("Pasted line from temporary clipboard");
+                }
+                else
+                    this.setMessage("No temporary clipboard available");
+            }
+            // Save the file
+            else if (key.ctrl && key.name == "s") {
+                this.save();
+                return;
+            }
+            // Move line up and down
+            else if (key.ctrl
+                && !key.shift
+                && (key.name === "up"
+                    || key.name === "down"))
+                this.moveLine(this.cursor.y, key.name);
             // Arrow keys to move around
-            else if ((key.name === "up"
-                || key.name === "down"
-                || key.name === "left"
-                || key.name === "right"))
+            else if (!key.ctrl
+                && (key.name === "up"
+                    || key.name === "down"
+                    || key.name === "left"
+                    || key.name === "right"))
                 this.moveCursor(key.name);
             // Pg Up and Down
             else if ((key.name === "pageup"
@@ -92,10 +133,10 @@ class Editor {
                 const line = this.content[this.cursor.y];
                 switch (key.name) {
                     case "backspace":
-                        if (line === "") {
-                            this.deleteLine();
-                            break;
-                        }
+                        // if (line === "") {
+                        //   this.deleteLine();
+                        //   break;
+                        // }
                         this.backspace();
                         break;
                     case "delete":
@@ -105,8 +146,11 @@ class Editor {
                         }
                         this.delete();
                         break;
-                    case "return":
+                    case "return": // Regular Enter
                         this.enter();
+                        break;
+                    case "enter": // Enter while pressing control apparently???
+                        this.enter(this.content[this.cursor.y - 1].length, this.cursor.y - 1);
                         break;
                     case "space":
                         this.append(" ");
@@ -130,12 +174,27 @@ class Editor {
             }
         });
     }
+    getCurrentLine() {
+        return this.content[this.cursor.y];
+    }
+    getCurrentLineIndex() {
+        return this.cursor.y;
+    }
     save() {
         const content = this.content.join(os_1.default.EOL);
-        fs_1.default.writeFile(this.filePath, content, err => {
-            err ? this.setMessage(err.message) : this.setMessage(`Saved file - ${Buffer.byteLength(content)} bytes, ${this.content.length} lines, ${content.length} characters, `);
+        return new Promise((resolve, reject) => {
+            fs_1.default.writeFile(this.filePath, content, err => {
+                if (err) {
+                    this.setMessage(err.message);
+                    reject(err.message);
+                }
+                else {
+                    this.setMessage(`Saved file - ${Buffer.byteLength(content)} bytes, ${this.content.length} lines, ${content.length} characters, `);
+                    this.justSaved = true;
+                    resolve(true);
+                }
+            });
         });
-        this.justSaved = true;
     }
     render(content = this.content) {
         process.title = `Edion | ${this.filePath}`;
@@ -146,7 +205,7 @@ class Editor {
         const pageSize = this.pageSize = Math.floor(h - 6);
         stdout.cursorTo(0, 0);
         stdout.clearScreenDown();
-        this.renderTitle();
+        this.setTitle();
         stdout.cursorTo(0, 1);
         this.drawLine();
         stdout.cursorTo(0, 2);
@@ -168,9 +227,9 @@ class Editor {
     }
     setMessage(msg = null) {
         this.topMessage = msg;
-        this.renderTitle();
+        this.setTitle();
     }
-    renderTitle(title = `File: ${this.filePath}`) {
+    setTitle(title = `File: ${this.filePath}`) {
         stdout.cursorTo(0, 0);
         stdout.clearLine(1);
         stdout.write(title);
@@ -188,14 +247,17 @@ class Editor {
     }
     enter(x = this.cursor.x, y = this.cursor.y) {
         const line = this.content[y];
+        let spaceCount = 0;
+        while (line.substring(spaceCount, spaceCount + 1) === " ")
+            spaceCount++;
         const p1c = this.content.slice(0, y);
         const p2c = this.content.slice(y + 1);
         const p1 = line.substring(0, x);
-        const p2 = line.substring(x);
+        const p2 = " ".repeat(spaceCount) + line.substring(x);
         this.content = p1c.concat(p1, p2, ...p2c);
         // this.setLine(p2, y + 1);
         this.render(this.content);
-        this.setCursor(0, y + 1);
+        this.setCursor(spaceCount, y + 1);
     }
     backspace(x = this.cursor.x, y = this.cursor.y) {
         const line = this.content[y];
@@ -207,10 +269,10 @@ class Editor {
                 this.moveCursor("left");
         }
         else if (y > 0) {
-            this.deleteLine(y);
             const len = this.content[y - 1].length;
             this.setLine(this.content[y - 1] + p1 + p2, y - 1);
             this.setCursor(len, y - 1);
+            this.deleteLine(y);
         }
     }
     delete(x = this.cursor.x, y = this.cursor.y) {
