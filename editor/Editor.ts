@@ -7,17 +7,22 @@ import Syntax from "./Syntax";
 
 const { stdin, stdout } = process;
 
-const args = process.argv.slice(2);
-
-
 export default class Editor {
   private readonly DEBUG: boolean;
+  private readonly LANG: string;
 
   constructor(private filePath: string, args: string[] = []) {
+    // File path
+    this.filePath = filePath = Path.resolve(this.filePath);
     // Parameters
     this.DEBUG = args.includes("--debug");
+    this.LANG = (() => {
+      const langCmd = "--lang=";
+      const arg = args.find(arg => arg.startsWith(langCmd));
+      if (!arg) return Path.extname(this.filePath).substring(1);
+      return arg.substring(langCmd.length);
+    })();
     
-    this.filePath = filePath = Path.resolve(this.filePath);
     if (fs.existsSync(filePath)) {
       this.content = fs.readFileSync(filePath, "utf-8").split(/\r\n|\n/);
     }
@@ -29,8 +34,6 @@ export default class Editor {
 
     keypress(process.stdin);
 
-    // var stdin = process.openStdin(); 
-    // stdin.setEncoding("utf-8");
     stdin.setRawMode(true);
     stdin.resume();
 
@@ -324,7 +327,7 @@ export default class Editor {
     const p2 = line.substring(x + 1);
     this.setLine(p1 + p2, y);
   }
-
+  
   public setLine(lineContent: string, lineIndex = this.cursor.y) {
     const { x, y } = this.cursor;
     this.setCursor(0, lineIndex);
@@ -334,8 +337,7 @@ export default class Editor {
     this.setCursor(0, lineIndex);
     stdout.clearLine(1);
 
-    let ext = Path.extname(this.filePath).substring(1);
-    if (ext in Syntax && typeof (Syntax as any)[ext] === "function") stdout.write((Syntax as any)[ext](lineContent));
+    if (this.LANG in Syntax && typeof (Syntax as any)[this.LANG] === "function") stdout.write((Syntax as any)[this.LANG](lineContent, lineIndex));
     else stdout.write(lineContent);
     this.content[lineIndex] = lineContent;
     this.setCursor(x, y);

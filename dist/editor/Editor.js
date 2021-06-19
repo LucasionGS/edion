@@ -10,7 +10,6 @@ const keypress_1 = __importDefault(require("keypress"));
 const os_1 = __importDefault(require("os"));
 const Syntax_1 = __importDefault(require("./Syntax"));
 const { stdin, stdout } = process;
-const args = process.argv.slice(2);
 class Editor {
     constructor(filePath, args = []) {
         this.filePath = filePath;
@@ -24,9 +23,17 @@ class Editor {
         this.indention = 2;
         this.topMessage = null;
         this.lastCursorX = 0;
+        // File path
+        this.filePath = filePath = path_1.default.resolve(this.filePath);
         // Parameters
         this.DEBUG = args.includes("--debug");
-        this.filePath = filePath = path_1.default.resolve(this.filePath);
+        this.LANG = (() => {
+            const langCmd = "--lang=";
+            const arg = args.find(arg => arg.startsWith(langCmd));
+            if (!arg)
+                return path_1.default.extname(this.filePath).substring(1);
+            return arg.substring(langCmd.length);
+        })();
         if (fs_1.default.existsSync(filePath)) {
             this.content = fs_1.default.readFileSync(filePath, "utf-8").split(/\r\n|\n/);
         }
@@ -36,8 +43,6 @@ class Editor {
         }
         this.render(this.content);
         keypress_1.default(process.stdin);
-        // var stdin = process.openStdin(); 
-        // stdin.setEncoding("utf-8");
         stdin.setRawMode(true);
         stdin.resume();
         stdout.on("resize", () => this.render());
@@ -289,9 +294,8 @@ class Editor {
         stdout.write((lineIndex + 1).toString() + " ".repeat(this.indention - numLen - 2) + "|");
         this.setCursor(0, lineIndex);
         stdout.clearLine(1);
-        let ext = path_1.default.extname(this.filePath).substring(1);
-        if (ext in Syntax_1.default && typeof Syntax_1.default[ext] === "function")
-            stdout.write(Syntax_1.default[ext](lineContent));
+        if (this.LANG in Syntax_1.default && typeof Syntax_1.default[this.LANG] === "function")
+            stdout.write(Syntax_1.default[this.LANG](lineContent, lineIndex));
         else
             stdout.write(lineContent);
         this.content[lineIndex] = lineContent;

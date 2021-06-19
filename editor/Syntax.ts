@@ -1,12 +1,18 @@
 import "colors";
 
-export default new class Syntax implements LanguageFunctions {
-  // Common Regexes
+export default new class Syntax {
+  //# Common Regexes
+  private __SHEBANG = (line: string, i: number) => i === 0 ? line.replace(/^#!.*/, "$&".gray) : line;
+
+  // Quotes
   private __DOUBLE_QUOTES = (line: string) => line.replace(/"[^"\\\\]*(?:\\\\.[^"\\\\]*)*"/sg, "$&".gray);
   private __SINGLE_QUOTES = (line: string) => line.replace(/'[^'\\\\]*(?:\\\\.[^'\\\\]*)*'/sg, "$&".gray);
+  // Comments
   private __BACKTICK_QUOTES = (line: string) => line.replace(/`[^`\\\\]*(?:\\\\.[^`\\\\]*)*`/sg, "$&".gray);
   private __SLASH_STAR_BLOCK_COMMENT = (line: string) => line.replace(/\/\*.*\*\//g, "$&".green);
   private __DOUBLE_SLASH_LINE_COMMENT = (line: string) => line.replace(/\/\/.*/g, "$&".green);
+  private __DOUBLE_DASH_LINE_COMMENT = (line: string) => line.replace(/\-\-.*/g, "$&".green);
+
   private __POUNDSIGN_LINE_COMMENT = (line: string) => line.replace(/#.*/g, "$&".green);
   private __FUNCTIONS = (line: string) => line.replace(/[^\.\s]+(?=\()/g, "$&".red);
   private __OOP_KEYWORDS = (line: string) => line.replace(
@@ -29,7 +35,7 @@ export default new class Syntax implements LanguageFunctions {
   /**
    * JavaScript Objection Notation
    */
-  public json(line: string) {
+  public json = (line: string) => {
     ([
       this.__DOUBLE_SLASH_LINE_COMMENT,
       this.__DOUBLE_QUOTES,
@@ -42,17 +48,11 @@ export default new class Syntax implements LanguageFunctions {
   }
 
   /**
-   * JavaScript
-   */
-  public js(line: string) {
-    return this.ts(line);
-  }
-
-  /**
    * TypeScript
    */
-  public ts(line: string) {
+  public ts = (line: string, i: number) => {
     ([
+      this.__SHEBANG,
       this.__DOUBLE_SLASH_LINE_COMMENT,
       this.__SLASH_STAR_BLOCK_COMMENT,
       this.__DOUBLE_QUOTES,
@@ -65,16 +65,23 @@ export default new class Syntax implements LanguageFunctions {
       this.__FUNCTIONS,
       line => line.replace(/(?<=\w+\s*:\s*)\w+/g, "$&".cyan) // TypeScript explicit types
     ] as LanguageFunction[]).forEach(
-      func => line = func(line)
+      func => line = func(line, i)
     );
 
     return line;
   }
-  
+
+  /**
+   * JavaScript.
+   * 
+   * Based of TypeScript
+   */
+  public js = this.ts;
+
   /**
    * C#/CSharp
    */
-  public cs(line: string) {
+  public cs = (line: string) => {
     ([
       this.__DOUBLE_SLASH_LINE_COMMENT,
       this.__SLASH_STAR_BLOCK_COMMENT,
@@ -91,11 +98,11 @@ export default new class Syntax implements LanguageFunctions {
 
     return line;
   }
-  
+
   /**
    * Bourne-again shell / Bash
    */
-  public sh(line: string) {
+  public sh = (line: string) => {
     ([
       this.__POUNDSIGN_LINE_COMMENT,
       this.__PRIMITIVE_VALUES,
@@ -106,11 +113,32 @@ export default new class Syntax implements LanguageFunctions {
 
     return line;
   }
-  
+
+  /**
+   * LUA
+   */
+  public lua = (line: string) => {
+    ([
+      this.__DOUBLE_DASH_LINE_COMMENT,
+      this.__OOP_KEYWORDS,
+      (line: string) => line.replace( // adds more lua keyword highlighting
+        /(\b|^|\s+)(local|then|end)\b/g,
+        "$&".cyan),
+      this.__PRIMITIVE_VALUES,
+      this.__FUNCTIONS,
+      this.__DOUBLE_QUOTES,
+      this.__SINGLE_QUOTES,
+    ] as LanguageFunction[]).forEach(
+      func => line = func(line)
+    );
+
+    return line;
+  }
+
   /**
    * Ini data file
    */
-  public ini(line: string) {
+  public ini = (line: string) => {
     ([
       this.__POUNDSIGN_LINE_COMMENT,
       line => line.replace(/^\s*\[.*?\]/g, "$&".bgBlue),
@@ -121,13 +149,8 @@ export default new class Syntax implements LanguageFunctions {
 
     return line;
   }
+
+  public inf = this.ini;
 }
 
-type LanguageFunction = (line: string) => string;
-
-interface LanguageFunctions {
-  json: LanguageFunction;
-  ts: LanguageFunction;
-  js: LanguageFunction;
-  sh: LanguageFunction;
-}
+type LanguageFunction = (line: string, i?: number) => string;
