@@ -24,6 +24,7 @@ exports.default = new class Syntax {
         this.__STATIC_KEYWORDS = (line) => line.replace(/(\b|^|\s+)(int|string|bool|boolean|char|long)\b/g, "$&".cyan);
         this.__PRIMITIVE_VALUES = (line) => line.replace(/(\b|^|\s+)(\d+(?:\.\d+)?|true|false|null|undefined|void)\b/g, "$&".blue);
         this.__DASH_PARAMETER = (line) => line.replace(/(\b|^|\s+)(-[\S]*)\b/g, "$&".gray);
+        this.__REGEXP = (line) => line.replace(/(\b|^|\s+)(\/.+\/([gis]*))(\b|$|\s+)/g, Colors_1.default.BrightRed("$&"));
         // Languages
         /**
          * JavaScript Objection Notation
@@ -52,6 +53,7 @@ exports.default = new class Syntax {
                 this.__STATIC_KEYWORDS,
                 this.__PRIMITIVE_VALUES,
                 this.__FUNCTIONS,
+                this.__REGEXP,
                 line => line.replace(/(?<=\w+\s*:\s*)\w+/g, "$&".cyan) // TypeScript explicit types
             ].forEach(func => line = func(line, i));
             return line;
@@ -97,6 +99,7 @@ exports.default = new class Syntax {
             ].forEach(func => line = func(line));
             return line;
         };
+        this.cc = this.c;
         this.cpp = this.c;
         this.ino = this.c;
         /**
@@ -120,6 +123,23 @@ exports.default = new class Syntax {
                 (line) => line.replace(// adds more lua keyword highlighting
                 /(\b|^|\s+)(local|then|end)\b/g, Colors_1.default.BrightCyan("$&")),
                 this.__PRIMITIVE_VALUES,
+                this.__FUNCTIONS,
+                this.__DOUBLE_QUOTES,
+                this.__SINGLE_QUOTES,
+            ].forEach(func => line = func(line));
+            return line;
+        };
+        /**
+         * Python
+         */
+        this.py = (line) => {
+            [
+                this.__POUNDSIGN_LINE_COMMENT,
+                this.__OOP_KEYWORDS,
+                (line) => line.replace(// adds more lua keyword highlighting
+                /(\b|^|\s+)(local|then|end)\b/g, Colors_1.default.BrightCyan("$&")),
+                this.__PRIMITIVE_VALUES,
+                line => line.replace(/(\b|^|\s+)(def|define)\b/g, "$&".cyan),
                 this.__FUNCTIONS,
                 this.__DOUBLE_QUOTES,
                 this.__SINGLE_QUOTES,

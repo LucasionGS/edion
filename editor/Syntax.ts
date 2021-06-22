@@ -31,6 +31,9 @@ export default new class Syntax {
   private __DASH_PARAMETER = (line: string) => line.replace(
     /(\b|^|\s+)(-[\S]*)\b/g,
     "$&".gray);
+  private __REGEXP = (line: string) => line.replace(
+    /(\b|^|\s+)(\/.+\/([gis]*))(\b|$|\s+)/g,
+    Colors.BrightRed("$&"));
 
   // Languages
   /**
@@ -64,6 +67,7 @@ export default new class Syntax {
       this.__STATIC_KEYWORDS,
       this.__PRIMITIVE_VALUES,
       this.__FUNCTIONS,
+      this.__REGEXP,
       line => line.replace(/(?<=\w+\s*:\s*)\w+/g, "$&".cyan) // TypeScript explicit types
     ] as LanguageFunction[]).forEach(
       func => line = func(line, i)
@@ -99,7 +103,7 @@ export default new class Syntax {
 
     return line;
   }
-  
+
   /**
    * C/C++/ino
    */
@@ -122,6 +126,7 @@ export default new class Syntax {
     return line;
   }
 
+  public cc = this.c;
   public cpp = this.c;
   public ino = this.c;
 
@@ -151,6 +156,30 @@ export default new class Syntax {
         /(\b|^|\s+)(local|then|end)\b/g,
         Colors.BrightCyan("$&")),
       this.__PRIMITIVE_VALUES,
+      this.__FUNCTIONS,
+      this.__DOUBLE_QUOTES,
+      this.__SINGLE_QUOTES,
+    ] as LanguageFunction[]).forEach(
+      func => line = func(line)
+    );
+
+    return line;
+  }
+
+  /**
+   * Python
+   */
+  public py = (line: string) => {
+    ([
+      this.__POUNDSIGN_LINE_COMMENT,
+      this.__OOP_KEYWORDS,
+      (line: string) => line.replace( // adds more lua keyword highlighting
+        /(\b|^|\s+)(local|then|end)\b/g,
+        Colors.BrightCyan("$&")),
+      this.__PRIMITIVE_VALUES,
+      line => line.replace(
+        /(\b|^|\s+)(def|define)\b/g,
+        "$&".cyan),
       this.__FUNCTIONS,
       this.__DOUBLE_QUOTES,
       this.__SINGLE_QUOTES,
