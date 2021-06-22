@@ -1,6 +1,10 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 require("colors");
+const Colors_1 = __importDefault(require("./Colors"));
 exports.default = new class Syntax {
     constructor() {
         //# Common Regexes
@@ -14,10 +18,10 @@ exports.default = new class Syntax {
         this.__DOUBLE_SLASH_LINE_COMMENT = (line) => line.replace(/\/\/.*/g, "$&".green);
         this.__DOUBLE_DASH_LINE_COMMENT = (line) => line.replace(/\-\-.*/g, "$&".green);
         this.__POUNDSIGN_LINE_COMMENT = (line) => line.replace(/#.*/g, "$&".green);
-        this.__FUNCTIONS = (line) => line.replace(/[^\.\s\(\)]+(?=\()/g, "$&".yellow);
-        this.__OOP_KEYWORDS = (line) => line.replace(/(\b|^|\s+)(else|if|import|from|export|default|this|class|delete|public|private|protected|function|return|for|in|of|switch|case|break|continue|interface|namespace|use|using|type|as|static|unsigned|signed|long)\b/g, "$&".cyan);
+        this.__FUNCTIONS = (line) => line.replace(/[^\.\s\(\)]+(?=\()/g, Colors_1.default.BrightYellow("$&"));
+        this.__OOP_KEYWORDS = (line) => line.replace(/(\b|^|\s+)(else|if|import|from|export|default|this|class|delete|public|private|protected|function|return|for|in|of|switch|case|break|continue|interface|namespace|use|using|type|as|static|unsigned|signed)\b/g, Colors_1.default.Cyan("$&"));
         this.__DYNAMIC_KEYWORDS = (line) => line.replace(/(\b|^|\s+)(var|let|const)\b/g, "$&".cyan);
-        this.__STATIC_KEYWORDS = (line) => line.replace(/(\b|^|\s+)(int|string|bool|boolean|char)\b/g, "$&".cyan);
+        this.__STATIC_KEYWORDS = (line) => line.replace(/(\b|^|\s+)(int|string|bool|boolean|char|long)\b/g, "$&".cyan);
         this.__PRIMITIVE_VALUES = (line) => line.replace(/(\b|^|\s+)(\d+(?:\.\d+)?|true|false|null|undefined|void)\b/g, "$&".blue);
         this.__DASH_PARAMETER = (line) => line.replace(/(\b|^|\s+)(-[\S]*)\b/g, "$&".gray);
         // Languages
@@ -88,7 +92,8 @@ exports.default = new class Syntax {
                 this.__DYNAMIC_KEYWORDS,
                 this.__STATIC_KEYWORDS,
                 this.__PRIMITIVE_VALUES,
-                this.__FUNCTIONS
+                this.__FUNCTIONS,
+                line => line.replace(/#\w+/, Colors_1.default.BrightMagenta("$&"))
             ].forEach(func => line = func(line));
             return line;
         };
@@ -113,7 +118,7 @@ exports.default = new class Syntax {
                 this.__DOUBLE_DASH_LINE_COMMENT,
                 this.__OOP_KEYWORDS,
                 (line) => line.replace(// adds more lua keyword highlighting
-                /(\b|^|\s+)(local|then|end)\b/g, "$&".cyan),
+                /(\b|^|\s+)(local|then|end)\b/g, Colors_1.default.BrightCyan("$&")),
                 this.__PRIMITIVE_VALUES,
                 this.__FUNCTIONS,
                 this.__DOUBLE_QUOTES,

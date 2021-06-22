@@ -1,4 +1,5 @@
 import "colors";
+import Colors from "./Colors";
 
 export default new class Syntax {
   //# Common Regexes
@@ -14,15 +15,15 @@ export default new class Syntax {
   private __DOUBLE_DASH_LINE_COMMENT = (line: string) => line.replace(/\-\-.*/g, "$&".green);
 
   private __POUNDSIGN_LINE_COMMENT = (line: string) => line.replace(/#.*/g, "$&".green);
-  private __FUNCTIONS = (line: string) => line.replace(/[^\.\s\(\)]+(?=\()/g, "$&".yellow);
+  private __FUNCTIONS = (line: string) => line.replace(/[^\.\s\(\)]+(?=\()/g, Colors.BrightYellow("$&"));
   private __OOP_KEYWORDS = (line: string) => line.replace(
-    /(\b|^|\s+)(else|if|import|from|export|default|this|class|delete|public|private|protected|function|return|for|in|of|switch|case|break|continue|interface|namespace|use|using|type|as|static|unsigned|signed|long)\b/g,
-    "$&".cyan);
+    /(\b|^|\s+)(else|if|import|from|export|default|this|class|delete|public|private|protected|function|return|for|in|of|switch|case|break|continue|interface|namespace|use|using|type|as|static|unsigned|signed)\b/g,
+    Colors.Cyan("$&"));
   private __DYNAMIC_KEYWORDS = (line: string) => line.replace(
     /(\b|^|\s+)(var|let|const)\b/g,
     "$&".cyan);
   private __STATIC_KEYWORDS = (line: string) => line.replace(
-    /(\b|^|\s+)(int|string|bool|boolean|char)\b/g,
+    /(\b|^|\s+)(int|string|bool|boolean|char|long)\b/g,
     "$&".cyan);
   private __PRIMITIVE_VALUES = (line: string) => line.replace(
     /(\b|^|\s+)(\d+(?:\.\d+)?|true|false|null|undefined|void)\b/g,
@@ -112,7 +113,8 @@ export default new class Syntax {
       this.__DYNAMIC_KEYWORDS,
       this.__STATIC_KEYWORDS,
       this.__PRIMITIVE_VALUES,
-      this.__FUNCTIONS
+      this.__FUNCTIONS,
+      line => line.replace(/#\w+/, Colors.BrightMagenta("$&"))
     ] as LanguageFunction[]).forEach(
       func => line = func(line)
     );
@@ -147,7 +149,7 @@ export default new class Syntax {
       this.__OOP_KEYWORDS,
       (line: string) => line.replace( // adds more lua keyword highlighting
         /(\b|^|\s+)(local|then|end)\b/g,
-        "$&".cyan),
+        Colors.BrightCyan("$&")),
       this.__PRIMITIVE_VALUES,
       this.__FUNCTIONS,
       this.__DOUBLE_QUOTES,
