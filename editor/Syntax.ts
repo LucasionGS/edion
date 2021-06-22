@@ -14,9 +14,9 @@ export default new class Syntax {
   private __DOUBLE_DASH_LINE_COMMENT = (line: string) => line.replace(/\-\-.*/g, "$&".green);
 
   private __POUNDSIGN_LINE_COMMENT = (line: string) => line.replace(/#.*/g, "$&".green);
-  private __FUNCTIONS = (line: string) => line.replace(/[^\.\s]+(?=\()/g, "$&".red);
+  private __FUNCTIONS = (line: string) => line.replace(/[^\.\s\(\)]+(?=\()/g, "$&".yellow);
   private __OOP_KEYWORDS = (line: string) => line.replace(
-    /(\b|^|\s+)(else|if|import|from|export|default|this|class|delete|public|private|protected|function|return|for|in|of|switch|case|break|continue|interface|namespace|use|using|type|as)\b/g,
+    /(\b|^|\s+)(else|if|import|from|export|default|this|class|delete|public|private|protected|function|return|for|in|of|switch|case|break|continue|interface|namespace|use|using|type|as|static|unsigned|signed|long)\b/g,
     "$&".cyan);
   private __DYNAMIC_KEYWORDS = (line: string) => line.replace(
     /(\b|^|\s+)(var|let|const)\b/g,
@@ -98,6 +98,30 @@ export default new class Syntax {
 
     return line;
   }
+  
+  /**
+   * C/C++/ino
+   */
+  public c = (line: string) => {
+    ([
+      this.__DOUBLE_SLASH_LINE_COMMENT,
+      this.__SLASH_STAR_BLOCK_COMMENT,
+      this.__DOUBLE_QUOTES,
+      this.__SINGLE_QUOTES,
+      this.__OOP_KEYWORDS,
+      this.__DYNAMIC_KEYWORDS,
+      this.__STATIC_KEYWORDS,
+      this.__PRIMITIVE_VALUES,
+      this.__FUNCTIONS
+    ] as LanguageFunction[]).forEach(
+      func => line = func(line)
+    );
+
+    return line;
+  }
+
+  public cpp = this.c;
+  public ino = this.c;
 
   /**
    * Bourne-again shell / Bash
