@@ -1,6 +1,6 @@
 {
   "name": "edion",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "dist/main.js",
   "bin": {
     "edi": "dist/bin/cli.js"
@@ -17,5 +17,8 @@
   "dependencies": {
     "colors": "^1.4.0",
     "keypress": "^0.2.1"
+  },
+  "repository": {
+    "url": "https://github.com/LucasionGS/edion"
   }
 }
