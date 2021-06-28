@@ -36,10 +36,7 @@ export default async function main(args: string[]) {
 
   const [
     path
-  ] = args;
-
-  console.log(args);
-  
+  ] = args;  
   
   new Editor(path, args);
 }

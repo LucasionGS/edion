@@ -64,7 +64,6 @@ function main(args) {
             }
         }
         const [path] = args;
-        console.log(args);
         new Editor_1.default(path, args);
     });
 }
