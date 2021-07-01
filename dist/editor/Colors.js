@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = new class Colors {
     constructor() {
         this._Reset = "\u001b[0m";
+        // Regular colors
         this._Black = "\u001b[30m";
         this._Red = "\u001b[31m";
         this._Green = "\u001b[32m";
@@ -11,6 +12,7 @@ exports.default = new class Colors {
         this._Magenta = "\u001b[35m";
         this._Cyan = "\u001b[36m";
         this._White = "\u001b[37m";
+        // Bright colors
         this._BrightBlack = "\u001b[30;1m";
         this._BrightRed = "\u001b[31;1m";
         this._BrightGreen = "\u001b[32;1m";
@@ -19,6 +21,9 @@ exports.default = new class Colors {
         this._BrightMagenta = "\u001b[35;1m";
         this._BrightCyan = "\u001b[36;1m";
         this._BrightWhite = "\u001b[37;1m";
+    }
+    Reset(str) {
+        return this._Reset + str + this._Reset;
     }
     Black(str) {
         return this._Black + str + this._Reset;
@@ -43,9 +48,6 @@ exports.default = new class Colors {
     }
     White(str) {
         return this._White + str + this._Reset;
-    }
-    Reset(str) {
-        return this._Reset + str + this._Reset;
     }
     BrightBlack(str) {
         return this._BrightBlack + str + this._Reset;

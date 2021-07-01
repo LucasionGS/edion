@@ -1,4 +1,5 @@
 import Editor from "./editor/Editor";
+import History from "./editor/History";
 import Syntax from "./editor/Syntax";
 
 export default async function main(args: string[]) {
@@ -32,11 +33,33 @@ export default async function main(args: string[]) {
         ].join("\n")
       )
     }
+    else if (first === "--history" || first === "-h") {
+      const [,second] = args;
+      const history = History.getHistory();
+      if (
+        second
+        && !isNaN(+second)
+        && +second >= 0
+        && +second < history.length
+        && +second < History.maxSize) {
+        args[0] = history[+second];
+      }
+      else {
+        return console.log(
+          [
+            "History".underline.bold,
+            ...history.map((h, i) => `[${i}] ${h}`).reverse(),
+            `Select an index number with: ${"edi -h <index>".gray}`,
+          ].join("\n")
+        );
+      }
+    }
   }
 
   const [
     path
   ] = args;  
   
+  History.add(path);
   new Editor(path, args);
 }

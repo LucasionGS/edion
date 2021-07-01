@@ -68,6 +68,7 @@ class Editor {
         }
         else {
             let [, username, host, path] = this.filePath.match(isSSHPathRegex);
+            username = username !== null && username !== void 0 ? username : os_1.default.userInfo().username;
             this.filePath = path;
             const connect = (password) => {
                 console.log("\nConnecting...");
@@ -75,7 +76,7 @@ class Editor {
                 this.ssh.connect({
                     username,
                     host,
-                    password
+                    password,
                 }).then((n) => __awaiter(this, void 0, void 0, function* () {
                     rl.close();
                     console.log("Connected");

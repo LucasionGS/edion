@@ -51,6 +51,7 @@ export default class Editor {
     }
     else {
       let [, username, host, path] = this.filePath.match(isSSHPathRegex);
+      username = username ?? os.userInfo().username;
       this.filePath = path;
       const connect = (password: string) => {
         console.log("\nConnecting...");
@@ -59,26 +60,28 @@ export default class Editor {
         this.ssh.connect({
           username,
           host,
-          password
-        }).then(async n => {
-          rl.close();
-          console.log("Connected");
-          let exists = (await this.ssh.execCommand('[ -f "' + path + '" ] && echo "true" || echo "false"')).stdout; // Check if the file exists.
+          password,
+        }).then(
+          async n => {
+            rl.close();
+            console.log("Connected");
+            let exists = (await this.ssh.execCommand('[ -f "' + path + '" ] && echo "true" || echo "false"')).stdout; // Check if the file exists.
 
-          if (exists === "true") {
-            this.content = (await n.exec("cat", [path])).split(/\r\n|\n/);
-          }
-          else {
-            this.content = [""]
-            this.setMessage("New File");
-          }
+            if (exists === "true") {
+              this.content = (await n.exec("cat", [path])).split(/\r\n|\n/);
+            }
+            else {
+              this.content = [""]
+              this.setMessage("New File");
+            }
 
-          this.setup();
-        },
+            this.setup();
+          },
           reason => {
             console.error(reason.toString());
             ask();
-          });
+          }
+        );
       };
 
       // SSH connect

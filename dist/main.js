@@ -32,6 +32,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const Editor_1 = __importDefault(require("./editor/Editor"));
+const History_1 = __importDefault(require("./editor/History"));
 const Syntax_1 = __importDefault(require("./editor/Syntax"));
 function main(args) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -62,8 +63,27 @@ function main(args) {
                     })()
                 ].join("\n"));
             }
+            else if (first === "--history" || first === "-h") {
+                const [, second] = args;
+                const history = History_1.default.getHistory();
+                if (second
+                    && !isNaN(+second)
+                    && +second >= 0
+                    && +second < history.length
+                    && +second < History_1.default.maxSize) {
+                    args[0] = history[+second];
+                }
+                else {
+                    return console.log([
+                        "History".underline.bold,
+                        ...history.map((h, i) => `[${i}] ${h}`).reverse(),
+                        `Select an index number with: ${"edi -h <index>".gray}`,
+                    ].join("\n"));
+                }
+            }
         }
         const [path] = args;
+        History_1.default.add(path);
         new Editor_1.default(path, args);
     });
 }
