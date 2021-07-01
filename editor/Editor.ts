@@ -4,35 +4,252 @@ import Path from "path";
 import keypress from "keypress";
 import os from "os";
 import Syntax from "./Syntax";
+import Readline from "readline";
+import { NodeSSH } from "node-ssh";
 
 const { stdin, stdout } = process;
+
+export enum EditorMode {
+  Edit = 0,
+}
 
 export default class Editor {
   private readonly DEBUG: boolean;
   private readonly LANG: string;
+  private mode: EditorMode = EditorMode.Edit;
+  private ssh: NodeSSH = null;
+  private tempSSHpath: string = null;
+  private isSSH() {
+    return this.ssh != null;
+  }
 
   constructor(private filePath: string, args: string[] = []) {
-    // File path
-    this.filePath = filePath = Path.resolve(this.filePath);
-    // Parameters
-    this.DEBUG = args.includes("--debug");
+    // Is SSH?
+    let isSSHPathRegex = /^(?:(\w+)?@)?(.+):(.*)/;
     this.LANG = (() => {
       const langCmd = "--lang=";
       const arg = args.find(arg => arg.startsWith(langCmd));
       if (!arg) return Path.extname(this.filePath).substring(1);
       return arg.substring(langCmd.length);
     })();
-    
-    if (fs.existsSync(filePath)) {
-      this.content = fs.readFileSync(filePath, "utf-8").split(/\r\n|\n/);
+    if (!isSSHPathRegex.test(this.filePath)) {
+      // Local file
+      // File path
+      this.filePath = Path.resolve(this.filePath);
+      // Parameters
+      this.DEBUG = args.includes("--debug");
+
+      if (fs.existsSync(this.filePath)) {
+        this.content = fs.readFileSync(this.filePath, "utf-8").split(/\r\n|\n/);
+      }
+      else {
+        this.content = [""]
+        this.setMessage("New File");
+      }
+
+      this.setup();
     }
     else {
-      this.content = [""]
-      this.setMessage("New File");
+      let [, username, host, path] = this.filePath.match(isSSHPathRegex);
+      this.filePath = path;
+      const connect = (password: string) => {
+        console.log("\nConnecting...");
+
+        this.ssh = new NodeSSH();
+        this.ssh.connect({
+          username,
+          host,
+          password
+        }).then(async n => {
+          rl.close();
+          console.log("Connected");
+          let exists = (await this.ssh.execCommand('[ -f "' + path + '" ] && echo "true" || echo "false"')).stdout; // Check if the file exists.
+
+          if (exists === "true") {
+            this.content = (await n.exec("cat", [path])).split(/\r\n|\n/);
+          }
+          else {
+            this.content = [""]
+            this.setMessage("New File");
+          }
+
+          this.setup();
+        },
+          reason => {
+            console.error(reason.toString());
+            ask();
+          });
+      };
+
+      // SSH connect
+      let rl = Readline.createInterface(stdin, stdout);
+
+      const originalWrite = (rl as any)._writeToOutput;
+
+      const ask = () => {
+        (rl as any)._writeToOutput = originalWrite;
+        rl.question(`Password for ${username}@${host}: `, password => {
+          connect(password);
+        });
+
+        (rl as any)._writeToOutput = function _writeToOutput(stringToWrite: string) {
+          (rl as any).output.write("*");
+        };
+      };
+
+      ask();
     }
+  }
+
+  private onKeypressEditMode(chunk: Buffer, key: KeyPress) {
+    if (this.DEBUG) this.setMessage(JSON.stringify(key));
+    // Errors
+    if (!key) {
+      if (typeof chunk === "undefined") return;
+      let char = chunk.toString();
+      if (char.length === 1) {
+        this.append(char);
+      }
+    }
+    // Kill the process
+    else if (key.ctrl && (key.name == "q")) {
+      if (this.justSaved) {
+        stdout.cursorTo(0, 0);
+        stdout.clearScreenDown();
+        process.exit();
+      }
+      else {
+        this.setMessage("CTRL+Q was pressed. There are possibly unsaved changes. Press CTRL+S to save first, or press CTRL+Q again to Quit without saving");
+        this.justSaved = true;
+        return;
+      }
+    }
+
+    // Kill the process
+    else if (key.ctrl && (key.name == "w")) {
+      this.save().then(() => {
+        stdout.cursorTo(0, 0);
+        stdout.clearScreenDown();
+        process.exit();
+      }).catch((err) => {
+        if (err) {
+          this.setMessage(err)
+        }
+      });
+    }
+
+    // Copy line
+    else if (key.ctrl && (key.name == "c")) {
+      this.clipboard = this.getCurrentLine();
+      this.setMessage("Copied line to temporary clipboard");
+    }
+
+    // Paste line
+    else if (key.ctrl && (key.name == "v")) {
+      if (typeof this.clipboard === "string") {
+        const cur = this.getCurrentLine();
+        this.enter(cur.length, this.getCurrentLineIndex());
+        this.setLine(this.clipboard);
+        this.setCursor(this.clipboard.length);
+        this.setMessage("Pasted line from temporary clipboard");
+      }
+      else this.setMessage("No temporary clipboard available");
+    }
+
+    // Save the file
+    else if (key.ctrl && key.name == "s") {
+      this.save();
+      return;
+    }
+
+    // Move line up and down
+    else if (
+      key.ctrl
+      && !key.shift
+      && (key.name === "up"
+        || key.name === "down")
+    ) this.moveLine(this.cursor.y, key.name);
+
+    // Arrow keys to move around
+    else if (
+      !key.ctrl
+      && (key.name === "up"
+        || key.name === "down"
+        || key.name === "left"
+        || key.name === "right")
+    ) this.moveCursor(key.name);
+
+    // Pg Up and Down
+    else if (
+      (key.name === "pageup"
+        || key.name === "pagedown")
+    ) {
+      const max = Math.floor(this.content.length / this.pageSize);
+      let nxPage = this.pageIndex + (key.name === "pagedown" ? 1 : -1);
+      nxPage = Math.min(max, Math.max(0, nxPage));
+      if (nxPage !== this.pageIndex) {
+        this.setCursor(0, nxPage * this.pageSize);
+        this.render();
+      }
+    }
+
+    // Any standard character
+    else if (key.name.length === 1) {
+      this.append(key.shift ? key.name.toUpperCase() : key.name);
+    }
+
+    // Special buttons
+    else {
+      const line = this.content[this.cursor.y];
+      switch (key.name) {
+        case "backspace":
+          // if (line === "") {
+          //   this.deleteLine();
+          //   break;
+          // }
+          this.backspace();
+          break;
+        case "delete":
+          if (key.ctrl) {
+            this.deleteLine(this.cursor.y);
+            break;
+          }
+          this.delete();
+          break;
+        case "return": // Regular Enter
+          this.enter();
+          break;
+        case "enter": // Enter while pressing control apparently???
+          this.enter(this.content[this.cursor.y - 1].length, this.cursor.y - 1);
+          break;
+        case "space":
+          this.append(" ");
+          break;
+        case "tab":
+          this.append("  ");
+          break;
+        case "home":
+          this.setCursor(0);
+          break;
+        case "end":
+          this.setCursor(line.length);
+          break;
+
+        default:
+          break;
+      }
+    }
+
+    if (this.justSaved) {
+      this.justSaved = false;
+      this.setMessage();
+    }
+  }
+
+  private setup() {
     this.render(this.content);
 
-    keypress(process.stdin);
+    keypress(stdin);
 
     stdin.setRawMode(true);
     stdin.resume();
@@ -40,155 +257,20 @@ export default class Editor {
     stdout.on("resize", () => this.render());
 
     stdin.on('keypress', (chunk: Buffer, key: KeyPress) => {
-      if (this.DEBUG) this.setMessage(JSON.stringify(key));
-      // Errors
-      if (!key) {
-        if (typeof chunk === "undefined") return;
-        let char = chunk.toString();
-        if (char.length === 1) {
-          this.append(char);
-        }
-      }
-      // Kill the process
-      else if (key.ctrl && (key.name == "q")) {
-        if (this.justSaved) {
-          stdout.cursorTo(0, 0);
-          stdout.clearScreenDown();
-          process.exit();
-        }
-        else {
-          this.setMessage("CTRL+Q was pressed. There are possibly unsaved changes. Press CTRL+S to save first, or press CTRL+Q again to Quit without saving");
-          this.justSaved = true;
-          return;
-        }
-      }
-      
-      // Kill the process
-      else if (key.ctrl && (key.name == "w")) {
-        this.save().then(() => {
-          stdout.cursorTo(0, 0);
-          stdout.clearScreenDown();
-          process.exit();
-        }).catch((err) => {
-          if (err) {
-            this.setMessage(err)
-          }
-        });
-      }
-      
-      // Copy line
-      else if (key.ctrl && (key.name == "c")) {
-        this.clipboard = this.getCurrentLine();
-        this.setMessage("Copied line to temporary clipboard");
-      }
-      
-      // Paste line
-      else if (key.ctrl && (key.name == "v")) {
-        if (typeof this.clipboard === "string") {
-          const cur = this.getCurrentLine();
-          this.enter(cur.length, this.getCurrentLineIndex());
-          this.setLine(this.clipboard);
-          this.setCursor(this.clipboard.length);
-          this.setMessage("Pasted line from temporary clipboard");
-        }
-        else this.setMessage("No temporary clipboard available");
-      }
+      switch (this.mode) {
+        case EditorMode.Edit:
+          return this.onKeypressEditMode(chunk, key);
 
-      // Save the file
-      else if (key.ctrl && key.name == "s") {
-        this.save();
-        return;
-      }
-    
-      // Move line up and down
-      else if (
-        key.ctrl
-        && !key.shift
-        && (key.name === "up"
-        || key.name === "down")
-      ) this.moveLine(this.cursor.y, key.name);
-
-      // Arrow keys to move around
-      else if (
-        !key.ctrl
-        && (key.name === "up"
-        || key.name === "down"
-        || key.name === "left"
-        || key.name === "right")
-      ) this.moveCursor(key.name);
-
-      // Pg Up and Down
-      else if (
-        (key.name === "pageup"
-        || key.name === "pagedown")
-      ) {
-        const max = Math.floor(this.content.length / this.pageSize);
-        let nxPage = this.pageIndex + (key.name === "pagedown" ? 1 : -1);
-        nxPage = Math.min(max, Math.max(0, nxPage));
-        if (nxPage !== this.pageIndex) {
-          this.setCursor(0, nxPage * this.pageSize);
-          this.render();
-        }
-      }
-        
-      // Any standard character
-      else if (key.name.length === 1) {
-        this.append(key.shift ? key.name.toUpperCase() : key.name);
-      }
-
-      // Special buttons
-      else {
-        const line = this.content[this.cursor.y];
-        switch (key.name) {
-          case "backspace":
-            // if (line === "") {
-            //   this.deleteLine();
-            //   break;
-            // }
-            this.backspace();
-            break;
-          case "delete":
-            if (key.ctrl) {
-              this.deleteLine(this.cursor.y);
-              break;
-            }
-            this.delete();
-            break;
-          case "return": // Regular Enter
-            this.enter();
-            break;
-          case "enter": // Enter while pressing control apparently???
-            this.enter(this.content[this.cursor.y - 1].length, this.cursor.y - 1);
-            break;
-          case "space":
-            this.append(" ");
-            break;
-          case "tab":
-            this.append("  ");
-            break;
-          case "home":
-            this.setCursor(0);
-            break;
-          case "end":
-            this.setCursor(line.length);
-            break;
-
-          default:
-            break;
-        }
-      }
-
-      if (this.justSaved) {
-        this.justSaved = false;
-        this.setMessage();
+        default:
+          break;
       }
     });
   }
-  
+
   public getCurrentLine(): string {
     return this.content[this.cursor.y];
   }
-  
+
   public getCurrentLineIndex(): number {
     return this.cursor.y;
   }
@@ -196,24 +278,59 @@ export default class Editor {
   private pageIndex = 0;
   private clipboard: string;
 
-  public save() {
+  public async save() {
     const content = this.content.join(os.EOL);
-    return new Promise((resolve, reject) => {
-      fs.writeFile(
-        this.filePath,
-        content,
-        err => {
-          if (err) {
-            this.setMessage(err.message);
-            reject(err.message);
+    return new Promise(async (resolve, reject) => {
+      if (!this.isSSH()) {
+        fs.writeFile(
+          this.filePath,
+          content,
+          err => {
+            if (err) {
+              this.setMessage(err.message);
+              reject(err.message);
+            }
+            else {
+              this.setMessage(`Saved file - ${Buffer.byteLength(content)} bytes, ${this.content.length} lines, ${content.length} characters, `)
+              this.justSaved = true;
+              resolve(true);
+            }
           }
-          else {
-            this.setMessage(`Saved file - ${Buffer.byteLength(content)} bytes, ${this.content.length} lines, ${content.length} characters, `)
-            this.justSaved = true;
-            resolve(true);
+        );
+      }
+      else {
+        // Save from ssh connection.
+        while (!this.tempSSHpath) this.tempSSHpath = Path.resolve(os.tmpdir(), this.randomString(6));
+        fs.writeFile(
+          this.tempSSHpath,
+          content,
+          err => {
+            if (err) {
+              this.setMessage(err.message);
+              reject(err.message);
+            }
+            else {
+
+              this.ssh.putFile(this.tempSSHpath, this.filePath);
+              
+              this.setMessage(`Saved file - ${Buffer.byteLength(content)} bytes, ${this.content.length} lines, ${content.length} characters, `)
+              this.justSaved = true;
+              resolve(true);
+            }
           }
-        });
+        );
+      }
     });
+  }
+
+  private randomString(length: number) {
+    let result = "";
+    let characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let charactersLength = characters.length;
+    for (let i = 0; i < length; i++) {
+      result += characters.charAt(Math.floor(Math.random() * charactersLength));
+    }
+    return result;
   }
 
   private justSaved = true;
@@ -229,11 +346,11 @@ export default class Editor {
   private height: number;
   private pageSize: number;
   private indention = 2;
-  
+
   public render(content = this.content) {
 
     process.title = `Edion | ${this.filePath}`;
-    
+
     this.indention = content.length.toString().length + 3; // 3 more for extra spacing
     const [w, h] = stdout.getWindowSize();
     this.width = w;
@@ -242,7 +359,7 @@ export default class Editor {
     stdout.cursorTo(0, 0);
     stdout.clearScreenDown();
     this.setTitle();
-    
+
     stdout.cursorTo(0, 1);
     this.drawLine();
 
@@ -274,7 +391,7 @@ export default class Editor {
     stdout.cursorTo(0, 0);
     stdout.clearLine(1);
     stdout.write(title);
-    
+
     // if message
     if (this.topMessage) stdout.write(` | ${this.topMessage}`);
 
@@ -327,7 +444,7 @@ export default class Editor {
     const p2 = line.substring(x + 1);
     this.setLine(p1 + p2, y);
   }
-  
+
   public setLine(lineContent: string, lineIndex = this.cursor.y) {
     const { x, y } = this.cursor;
     this.setCursor(0, lineIndex);
@@ -347,7 +464,7 @@ export default class Editor {
     let otherIndex = lineIndex + (dir === "up" ? -1 : 1);
 
     if (!(otherIndex in this.content)) return;
-    
+
     let otherText = this.content[otherIndex];
     let lineText = this.content[lineIndex];
     this.setLine(lineText, otherIndex);
@@ -372,7 +489,7 @@ export default class Editor {
     y = Math.max(0, y);
     y = Math.min(this.content.length - 1, y);
 
-    
+
     const xTmp = Math.min(Math.max(0, x), this.content[y] ? this.content[y].length : 0);
     const yTmp = Math.min(Math.max(0, y), this.content.length - 1);
 

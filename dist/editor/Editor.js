@@ -1,18 +1,37 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.EditorMode = void 0;
 require("colors");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const keypress_1 = __importDefault(require("keypress"));
 const os_1 = __importDefault(require("os"));
 const Syntax_1 = __importDefault(require("./Syntax"));
+const readline_1 = __importDefault(require("readline"));
+const node_ssh_1 = require("node-ssh");
 const { stdin, stdout } = process;
+var EditorMode;
+(function (EditorMode) {
+    EditorMode[EditorMode["Edit"] = 0] = "Edit";
+})(EditorMode = exports.EditorMode || (exports.EditorMode = {}));
 class Editor {
     constructor(filePath, args = []) {
         this.filePath = filePath;
+        this.mode = EditorMode.Edit;
+        this.ssh = null;
+        this.tempSSHpath = null;
         this.pageIndex = 0;
         this.justSaved = true;
         this.content = [];
@@ -23,10 +42,8 @@ class Editor {
         this.indention = 2;
         this.topMessage = null;
         this.lastCursorX = 0;
-        // File path
-        this.filePath = filePath = path_1.default.resolve(this.filePath);
-        // Parameters
-        this.DEBUG = args.includes("--debug");
+        // Is SSH?
+        let isSSHPathRegex = /^(?:(\w+)?@)?(.+):(.*)/;
         this.LANG = (() => {
             const langCmd = "--lang=";
             const arg = args.find(arg => arg.startsWith(langCmd));
@@ -34,148 +51,210 @@ class Editor {
                 return path_1.default.extname(this.filePath).substring(1);
             return arg.substring(langCmd.length);
         })();
-        if (fs_1.default.existsSync(filePath)) {
-            this.content = fs_1.default.readFileSync(filePath, "utf-8").split(/\r\n|\n/);
+        if (!isSSHPathRegex.test(this.filePath)) {
+            // Local file
+            // File path
+            this.filePath = path_1.default.resolve(this.filePath);
+            // Parameters
+            this.DEBUG = args.includes("--debug");
+            if (fs_1.default.existsSync(this.filePath)) {
+                this.content = fs_1.default.readFileSync(this.filePath, "utf-8").split(/\r\n|\n/);
+            }
+            else {
+                this.content = [""];
+                this.setMessage("New File");
+            }
+            this.setup();
         }
         else {
-            this.content = [""];
-            this.setMessage("New File");
+            let [, username, host, path] = this.filePath.match(isSSHPathRegex);
+            this.filePath = path;
+            const connect = (password) => {
+                console.log("\nConnecting...");
+                this.ssh = new node_ssh_1.NodeSSH();
+                this.ssh.connect({
+                    username,
+                    host,
+                    password
+                }).then((n) => __awaiter(this, void 0, void 0, function* () {
+                    rl.close();
+                    console.log("Connected");
+                    let exists = (yield this.ssh.execCommand('[ -f "' + path + '" ] && echo "true" || echo "false"')).stdout; // Check if the file exists.
+                    if (exists === "true") {
+                        this.content = (yield n.exec("cat", [path])).split(/\r\n|\n/);
+                    }
+                    else {
+                        this.content = [""];
+                        this.setMessage("New File");
+                    }
+                    this.setup();
+                }), reason => {
+                    console.error(reason.toString());
+                    ask();
+                });
+            };
+            // SSH connect
+            let rl = readline_1.default.createInterface(stdin, stdout);
+            const originalWrite = rl._writeToOutput;
+            const ask = () => {
+                rl._writeToOutput = originalWrite;
+                rl.question(`Password for ${username}@${host}: `, password => {
+                    connect(password);
+                });
+                rl._writeToOutput = function _writeToOutput(stringToWrite) {
+                    rl.output.write("*");
+                };
+            };
+            ask();
         }
+    }
+    isSSH() {
+        return this.ssh != null;
+    }
+    onKeypressEditMode(chunk, key) {
+        if (this.DEBUG)
+            this.setMessage(JSON.stringify(key));
+        // Errors
+        if (!key) {
+            if (typeof chunk === "undefined")
+                return;
+            let char = chunk.toString();
+            if (char.length === 1) {
+                this.append(char);
+            }
+        }
+        // Kill the process
+        else if (key.ctrl && (key.name == "q")) {
+            if (this.justSaved) {
+                stdout.cursorTo(0, 0);
+                stdout.clearScreenDown();
+                process.exit();
+            }
+            else {
+                this.setMessage("CTRL+Q was pressed. There are possibly unsaved changes. Press CTRL+S to save first, or press CTRL+Q again to Quit without saving");
+                this.justSaved = true;
+                return;
+            }
+        }
+        // Kill the process
+        else if (key.ctrl && (key.name == "w")) {
+            this.save().then(() => {
+                stdout.cursorTo(0, 0);
+                stdout.clearScreenDown();
+                process.exit();
+            }).catch((err) => {
+                if (err) {
+                    this.setMessage(err);
+                }
+            });
+        }
+        // Copy line
+        else if (key.ctrl && (key.name == "c")) {
+            this.clipboard = this.getCurrentLine();
+            this.setMessage("Copied line to temporary clipboard");
+        }
+        // Paste line
+        else if (key.ctrl && (key.name == "v")) {
+            if (typeof this.clipboard === "string") {
+                const cur = this.getCurrentLine();
+                this.enter(cur.length, this.getCurrentLineIndex());
+                this.setLine(this.clipboard);
+                this.setCursor(this.clipboard.length);
+                this.setMessage("Pasted line from temporary clipboard");
+            }
+            else
+                this.setMessage("No temporary clipboard available");
+        }
+        // Save the file
+        else if (key.ctrl && key.name == "s") {
+            this.save();
+            return;
+        }
+        // Move line up and down
+        else if (key.ctrl
+            && !key.shift
+            && (key.name === "up"
+                || key.name === "down"))
+            this.moveLine(this.cursor.y, key.name);
+        // Arrow keys to move around
+        else if (!key.ctrl
+            && (key.name === "up"
+                || key.name === "down"
+                || key.name === "left"
+                || key.name === "right"))
+            this.moveCursor(key.name);
+        // Pg Up and Down
+        else if ((key.name === "pageup"
+            || key.name === "pagedown")) {
+            const max = Math.floor(this.content.length / this.pageSize);
+            let nxPage = this.pageIndex + (key.name === "pagedown" ? 1 : -1);
+            nxPage = Math.min(max, Math.max(0, nxPage));
+            if (nxPage !== this.pageIndex) {
+                this.setCursor(0, nxPage * this.pageSize);
+                this.render();
+            }
+        }
+        // Any standard character
+        else if (key.name.length === 1) {
+            this.append(key.shift ? key.name.toUpperCase() : key.name);
+        }
+        // Special buttons
+        else {
+            const line = this.content[this.cursor.y];
+            switch (key.name) {
+                case "backspace":
+                    // if (line === "") {
+                    //   this.deleteLine();
+                    //   break;
+                    // }
+                    this.backspace();
+                    break;
+                case "delete":
+                    if (key.ctrl) {
+                        this.deleteLine(this.cursor.y);
+                        break;
+                    }
+                    this.delete();
+                    break;
+                case "return": // Regular Enter
+                    this.enter();
+                    break;
+                case "enter": // Enter while pressing control apparently???
+                    this.enter(this.content[this.cursor.y - 1].length, this.cursor.y - 1);
+                    break;
+                case "space":
+                    this.append(" ");
+                    break;
+                case "tab":
+                    this.append("  ");
+                    break;
+                case "home":
+                    this.setCursor(0);
+                    break;
+                case "end":
+                    this.setCursor(line.length);
+                    break;
+                default:
+                    break;
+            }
+        }
+        if (this.justSaved) {
+            this.justSaved = false;
+            this.setMessage();
+        }
+    }
+    setup() {
         this.render(this.content);
-        keypress_1.default(process.stdin);
+        keypress_1.default(stdin);
         stdin.setRawMode(true);
         stdin.resume();
         stdout.on("resize", () => this.render());
         stdin.on('keypress', (chunk, key) => {
-            if (this.DEBUG)
-                this.setMessage(JSON.stringify(key));
-            // Errors
-            if (!key) {
-                if (typeof chunk === "undefined")
-                    return;
-                let char = chunk.toString();
-                if (char.length === 1) {
-                    this.append(char);
-                }
-            }
-            // Kill the process
-            else if (key.ctrl && (key.name == "q")) {
-                if (this.justSaved) {
-                    stdout.cursorTo(0, 0);
-                    stdout.clearScreenDown();
-                    process.exit();
-                }
-                else {
-                    this.setMessage("CTRL+Q was pressed. There are possibly unsaved changes. Press CTRL+S to save first, or press CTRL+Q again to Quit without saving");
-                    this.justSaved = true;
-                    return;
-                }
-            }
-            // Kill the process
-            else if (key.ctrl && (key.name == "w")) {
-                this.save().then(() => {
-                    stdout.cursorTo(0, 0);
-                    stdout.clearScreenDown();
-                    process.exit();
-                }).catch((err) => {
-                    if (err) {
-                        this.setMessage(err);
-                    }
-                });
-            }
-            // Copy line
-            else if (key.ctrl && (key.name == "c")) {
-                this.clipboard = this.getCurrentLine();
-                this.setMessage("Copied line to temporary clipboard");
-            }
-            // Paste line
-            else if (key.ctrl && (key.name == "v")) {
-                if (typeof this.clipboard === "string") {
-                    const cur = this.getCurrentLine();
-                    this.enter(cur.length, this.getCurrentLineIndex());
-                    this.setLine(this.clipboard);
-                    this.setCursor(this.clipboard.length);
-                    this.setMessage("Pasted line from temporary clipboard");
-                }
-                else
-                    this.setMessage("No temporary clipboard available");
-            }
-            // Save the file
-            else if (key.ctrl && key.name == "s") {
-                this.save();
-                return;
-            }
-            // Move line up and down
-            else if (key.ctrl
-                && !key.shift
-                && (key.name === "up"
-                    || key.name === "down"))
-                this.moveLine(this.cursor.y, key.name);
-            // Arrow keys to move around
-            else if (!key.ctrl
-                && (key.name === "up"
-                    || key.name === "down"
-                    || key.name === "left"
-                    || key.name === "right"))
-                this.moveCursor(key.name);
-            // Pg Up and Down
-            else if ((key.name === "pageup"
-                || key.name === "pagedown")) {
-                const max = Math.floor(this.content.length / this.pageSize);
-                let nxPage = this.pageIndex + (key.name === "pagedown" ? 1 : -1);
-                nxPage = Math.min(max, Math.max(0, nxPage));
-                if (nxPage !== this.pageIndex) {
-                    this.setCursor(0, nxPage * this.pageSize);
-                    this.render();
-                }
-            }
-            // Any standard character
-            else if (key.name.length === 1) {
-                this.append(key.shift ? key.name.toUpperCase() : key.name);
-            }
-            // Special buttons
-            else {
-                const line = this.content[this.cursor.y];
-                switch (key.name) {
-                    case "backspace":
-                        // if (line === "") {
-                        //   this.deleteLine();
-                        //   break;
-                        // }
-                        this.backspace();
-                        break;
-                    case "delete":
-                        if (key.ctrl) {
-                            this.deleteLine(this.cursor.y);
-                            break;
-                        }
-                        this.delete();
-                        break;
-                    case "return": // Regular Enter
-                        this.enter();
-                        break;
-                    case "enter": // Enter while pressing control apparently???
-                        this.enter(this.content[this.cursor.y - 1].length, this.cursor.y - 1);
-                        break;
-                    case "space":
-                        this.append(" ");
-                        break;
-                    case "tab":
-                        this.append("  ");
-                        break;
-                    case "home":
-                        this.setCursor(0);
-                        break;
-                    case "end":
-                        this.setCursor(line.length);
-                        break;
-                    default:
-                        break;
-                }
-            }
-            if (this.justSaved) {
-                this.justSaved = false;
-                this.setMessage();
+            switch (this.mode) {
+                case EditorMode.Edit:
+                    return this.onKeypressEditMode(chunk, key);
+                default:
+                    break;
             }
         });
     }
@@ -186,20 +265,50 @@ class Editor {
         return this.cursor.y;
     }
     save() {
-        const content = this.content.join(os_1.default.EOL);
-        return new Promise((resolve, reject) => {
-            fs_1.default.writeFile(this.filePath, content, err => {
-                if (err) {
-                    this.setMessage(err.message);
-                    reject(err.message);
+        return __awaiter(this, void 0, void 0, function* () {
+            const content = this.content.join(os_1.default.EOL);
+            return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                if (!this.isSSH()) {
+                    fs_1.default.writeFile(this.filePath, content, err => {
+                        if (err) {
+                            this.setMessage(err.message);
+                            reject(err.message);
+                        }
+                        else {
+                            this.setMessage(`Saved file - ${Buffer.byteLength(content)} bytes, ${this.content.length} lines, ${content.length} characters, `);
+                            this.justSaved = true;
+                            resolve(true);
+                        }
+                    });
                 }
                 else {
-                    this.setMessage(`Saved file - ${Buffer.byteLength(content)} bytes, ${this.content.length} lines, ${content.length} characters, `);
-                    this.justSaved = true;
-                    resolve(true);
+                    // Save from ssh connection.
+                    while (!this.tempSSHpath)
+                        this.tempSSHpath = path_1.default.resolve(os_1.default.tmpdir(), this.randomString(6));
+                    fs_1.default.writeFile(this.tempSSHpath, content, err => {
+                        if (err) {
+                            this.setMessage(err.message);
+                            reject(err.message);
+                        }
+                        else {
+                            this.ssh.putFile(this.tempSSHpath, this.filePath);
+                            this.setMessage(`Saved file - ${Buffer.byteLength(content)} bytes, ${this.content.length} lines, ${content.length} characters, `);
+                            this.justSaved = true;
+                            resolve(true);
+                        }
+                    });
                 }
-            });
+            }));
         });
+    }
+    randomString(length) {
+        let result = "";
+        let characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        let charactersLength = characters.length;
+        for (let i = 0; i < length; i++) {
+            result += characters.charAt(Math.floor(Math.random() * charactersLength));
+        }
+        return result;
     }
     render(content = this.content) {
         process.title = `Edion | ${this.filePath}`;
