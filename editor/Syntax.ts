@@ -1,6 +1,13 @@
 import "colors";
 import Colors from "./Colors";
 
+function createFunc(...functions: LanguageFunction[]) {
+  return (line: string, i: number) => {
+    functions.forEach(func => line = func(line, i));
+    return line;
+  }
+}
+
 export default new class Syntax {
   //# Common Regexes
   private __SHEBANG = (line: string, i: number) => i === 0 ? line.replace(/^#!.*/, "$&".gray) : line;
@@ -39,42 +46,29 @@ export default new class Syntax {
   /**
    * JavaScript Objection Notation
    */
-  public json = (line: string) => {
-    ([
-      this.__DOUBLE_SLASH_LINE_COMMENT,
-      this.__DOUBLE_QUOTES,
-      this.__PRIMITIVE_VALUES,
-    ] as LanguageFunction[]).forEach(
-      func => line = func(line)
-    );
-
-    return line;
-  }
+  public json = createFunc(
+    this.__DOUBLE_SLASH_LINE_COMMENT,
+    this.__DOUBLE_QUOTES,
+    this.__PRIMITIVE_VALUES,
+  );
 
   /**
    * TypeScript
    */
-  public ts = (line: string, i: number) => {
-    ([
-      this.__SHEBANG,
-      this.__DOUBLE_SLASH_LINE_COMMENT,
-      this.__SLASH_STAR_BLOCK_COMMENT,
-      this.__DOUBLE_QUOTES,
-      this.__SINGLE_QUOTES,
-      this.__BACKTICK_QUOTES,
-      this.__OOP_KEYWORDS,
-      this.__DYNAMIC_KEYWORDS,
-      this.__STATIC_KEYWORDS,
-      this.__PRIMITIVE_VALUES,
-      this.__FUNCTIONS,
-      this.__REGEXP,
-      line => line.replace(/(?<=\w+\s*:\s*)\w+/g, "$&".cyan) // TypeScript explicit types
-    ] as LanguageFunction[]).forEach(
-      func => line = func(line, i)
-    );
-
-    return line;
-  }
+  public ts = createFunc(
+    this.__SHEBANG,
+    this.__DOUBLE_SLASH_LINE_COMMENT,
+    this.__SLASH_STAR_BLOCK_COMMENT,
+    this.__DOUBLE_QUOTES,
+    this.__SINGLE_QUOTES,
+    this.__BACKTICK_QUOTES,
+    this.__OOP_KEYWORDS,
+    this.__DYNAMIC_KEYWORDS,
+    this.__STATIC_KEYWORDS,
+    this.__PRIMITIVE_VALUES,
+    this.__FUNCTIONS,
+    this.__REGEXP,
+  )
 
   /**
    * JavaScript.
@@ -86,45 +80,32 @@ export default new class Syntax {
   /**
    * C#/CSharp
    */
-  public cs = (line: string) => {
-    ([
-      this.__DOUBLE_SLASH_LINE_COMMENT,
-      this.__SLASH_STAR_BLOCK_COMMENT,
-      this.__DOUBLE_QUOTES,
-      this.__SINGLE_QUOTES,
-      this.__OOP_KEYWORDS,
-      this.__DYNAMIC_KEYWORDS,
-      this.__STATIC_KEYWORDS,
-      this.__PRIMITIVE_VALUES,
-      this.__FUNCTIONS
-    ] as LanguageFunction[]).forEach(
-      func => line = func(line)
-    );
-
-    return line;
-  }
+  public cs = createFunc(
+    this.__DOUBLE_SLASH_LINE_COMMENT,
+    this.__SLASH_STAR_BLOCK_COMMENT,
+    this.__DOUBLE_QUOTES,
+    this.__SINGLE_QUOTES,
+    this.__OOP_KEYWORDS,
+    this.__DYNAMIC_KEYWORDS,
+    this.__STATIC_KEYWORDS,
+    this.__PRIMITIVE_VALUES,
+    this.__FUNCTIONS
+  )
 
   /**
    * C/C++/ino
    */
-  public c = (line: string) => {
-    ([
-      this.__DOUBLE_SLASH_LINE_COMMENT,
-      this.__SLASH_STAR_BLOCK_COMMENT,
-      this.__DOUBLE_QUOTES,
-      this.__SINGLE_QUOTES,
-      this.__OOP_KEYWORDS,
-      this.__DYNAMIC_KEYWORDS,
-      this.__STATIC_KEYWORDS,
-      this.__PRIMITIVE_VALUES,
-      this.__FUNCTIONS,
-      line => line.replace(/#\w+/, Colors.BrightMagenta("$&"))
-    ] as LanguageFunction[]).forEach(
-      func => line = func(line)
-    );
-
-    return line;
-  }
+  public c = createFunc(
+    this.__DOUBLE_SLASH_LINE_COMMENT,
+    this.__SLASH_STAR_BLOCK_COMMENT,
+    this.__DOUBLE_QUOTES,
+    this.__SINGLE_QUOTES,
+    this.__OOP_KEYWORDS,
+    this.__DYNAMIC_KEYWORDS,
+    this.__STATIC_KEYWORDS,
+    this.__PRIMITIVE_VALUES,
+    this.__FUNCTIONS,
+  )
 
   public cc = this.c;
   public cpp = this.c;
@@ -133,79 +114,86 @@ export default new class Syntax {
   /**
    * Bourne-again shell / Bash
    */
-  public sh = (line: string) => {
-    ([
-      this.__POUNDSIGN_LINE_COMMENT,
-      this.__PRIMITIVE_VALUES,
-      this.__DASH_PARAMETER,
-    ] as LanguageFunction[]).forEach(
-      func => line = func(line)
-    );
-
-    return line;
-  }
+  public sh = createFunc(
+    this.__POUNDSIGN_LINE_COMMENT,
+    this.__PRIMITIVE_VALUES,
+    this.__DASH_PARAMETER,
+  )
 
   /**
    * LUA
    */
-  public lua = (line: string) => {
-    ([
-      this.__DOUBLE_DASH_LINE_COMMENT,
-      this.__OOP_KEYWORDS,
-      (line: string) => line.replace( // adds more lua keyword highlighting
-        /(\b|^|\s+)(local|then|end)\b/g,
-        Colors.BrightCyan("$&")),
-      this.__PRIMITIVE_VALUES,
-      this.__FUNCTIONS,
-      this.__DOUBLE_QUOTES,
-      this.__SINGLE_QUOTES,
-    ] as LanguageFunction[]).forEach(
-      func => line = func(line)
-    );
-
-    return line;
-  }
+  public lua = createFunc(
+    this.__DOUBLE_DASH_LINE_COMMENT,
+    this.__OOP_KEYWORDS,
+    (line: string) => line.replace( // adds more lua keyword highlighting
+      /(\b|^|\s+)(local|then|end)\b/g,
+      Colors.BrightCyan("$&")),
+    this.__PRIMITIVE_VALUES,
+    this.__FUNCTIONS,
+    this.__DOUBLE_QUOTES,
+    this.__SINGLE_QUOTES,
+  )
 
   /**
    * Python
    */
-  public py = (line: string) => {
-    ([
-      this.__POUNDSIGN_LINE_COMMENT,
-      this.__OOP_KEYWORDS,
-      (line: string) => line.replace( // adds more lua keyword highlighting
-        /(\b|^|\s+)(local|then|end)\b/g,
-        Colors.BrightCyan("$&")),
-      this.__PRIMITIVE_VALUES,
-      line => line.replace(
-        /(\b|^|\s+)(def|define)\b/g,
-        "$&".cyan),
-      this.__FUNCTIONS,
-      this.__DOUBLE_QUOTES,
-      this.__SINGLE_QUOTES,
-    ] as LanguageFunction[]).forEach(
-      func => line = func(line)
-    );
-
-    return line;
-  }
+  public py = createFunc(
+    this.__POUNDSIGN_LINE_COMMENT,
+    this.__OOP_KEYWORDS,
+    (line: string) => line.replace( // adds more lua keyword highlighting
+      /(\b|^|\s+)(local|then|end)\b/g,
+      Colors.BrightCyan("$&")),
+    this.__PRIMITIVE_VALUES,
+    line => line.replace(
+      /(\b|^|\s+)(def|define)\b/g,
+      "$&".cyan),
+    this.__FUNCTIONS,
+    this.__DOUBLE_QUOTES,
+    this.__SINGLE_QUOTES,
+  )
 
   /**
    * Ini data file
    */
-  public ini = (line: string) => {
-    ([
-      this.__POUNDSIGN_LINE_COMMENT,
-      line => line.replace(/^\s*\[.*?\]/g, "$&".bgBlue),
-      line => line.replace(/^\s*\w+/g, "$&".cyan),
-    ] as LanguageFunction[]).forEach(
-      func => line = func(line)
-    );
-
-    return line;
-  }
+  public ini = createFunc(
+    this.__POUNDSIGN_LINE_COMMENT,
+    line => line.replace(/^\s*\[.*?\]/g, "$&".bgBlue),
+    line => line.replace(/^\s*\w+/g, "$&".cyan),
+  )
 
   public inf = this.ini;
+
+  /**
+   * HTML file
+   */
+  public html = createFunc(
+    this.__SINGLE_QUOTES,
+    this.__DOUBLE_QUOTES,
+    line => line.replace(/(?<=<)\/?[-\w]+(?=.*?>)?/g, "$&".cyan),
+  )
+
+  /**
+   * HTM file
+   */
+  public htm = this.html;
+
+  /**
+   * PHP file
+   */
+  public php = createFunc(
+    this.html,
+    this.__SHEBANG,
+    this.__DOUBLE_SLASH_LINE_COMMENT,
+    this.__SLASH_STAR_BLOCK_COMMENT,
+    this.__BACKTICK_QUOTES,
+    this.__OOP_KEYWORDS,
+    this.__DYNAMIC_KEYWORDS,
+    this.__STATIC_KEYWORDS,
+    this.__PRIMITIVE_VALUES,
+    this.__FUNCTIONS,
+    this.__REGEXP,
+  );
 }
 
 type LanguageFunction = (line: string, i?: number) => string;
