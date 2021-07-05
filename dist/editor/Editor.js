@@ -32,7 +32,8 @@ class Editor {
         this.mode = EditorMode.Edit;
         this.ssh = null;
         this.tempSSHpath = null;
-        this.pageIndex = 0;
+        this.tabLength = 4;
+        this.scrollOffset = 0;
         this.justSaved = true;
         this.content = [];
         this.cursor = {
@@ -125,14 +126,14 @@ class Editor {
             }
         }
         // Kill the process
-        else if (key.ctrl && (key.name == "q")) {
+        else if (key.ctrl && (key.name == "q" || (this.DEBUG && key.name == "x"))) {
             if (this.justSaved) {
                 stdout.cursorTo(0, 0);
                 stdout.clearScreenDown();
                 process.exit();
             }
             else {
-                this.setMessage("CTRL+Q was pressed. There are possibly unsaved changes. Press CTRL+S to save first, or press CTRL+Q again to Quit without saving");
+                this.setMessage(`CTRL+${key.name.toUpperCase()} was pressed. There are possibly unsaved changes. Press CTRL+S to save first, or press CTRL+${key.name.toUpperCase()} again to Quit without saving`);
                 this.justSaved = true;
                 return;
             }
@@ -184,16 +185,59 @@ class Editor {
                 || key.name === "left"
                 || key.name === "right"))
             this.moveCursor(key.name);
+        // Arrow keys to move side to side quickly
+        else if (key.ctrl
+            && !key.shift
+            && (key.name === "left"
+                || key.name === "right")) {
+            let [line, x] = [this.getCurrentLine(), this.cursor.x];
+            let final = 0;
+            const reg = /[^\w]/g;
+            // const reg = /\b/g;
+            if (key.name === "left") {
+                // if (x === 0) return;
+                let l = [...line.slice(0, x)].reverse().join("");
+                if (x === 0) {
+                    return this.moveCursor(key.name);
+                }
+                if (!l)
+                    return this.setCursor(0);
+                let index = 0;
+                let pos = l.slice(index).search(reg);
+                if (pos === -1)
+                    return this.setCursor(0);
+                final -= pos;
+                // while (final === 0) {
+                //   index++;
+                // }
+                final -= 1;
+            }
+            else { // key.name === "right"
+                // if (x === line.length) return;
+                let l = line.slice(x);
+                if (x === line.length) {
+                    return this.moveCursor(key.name);
+                }
+                if (!l)
+                    return this.setCursor(line.length);
+                let index = 0;
+                while (final === 0) {
+                    let pos = l.slice(index).search(reg);
+                    if (pos === -1)
+                        return this.setCursor(line.length);
+                    final += pos;
+                    index++;
+                }
+                final += 1;
+            }
+            this.setCursor(this.cursor.x + final);
+        }
         // Pg Up and Down
         else if ((key.name === "pageup"
             || key.name === "pagedown")) {
-            const max = Math.floor(this.content.length / this.pageSize);
-            let nxPage = this.pageIndex + (key.name === "pagedown" ? 1 : -1);
-            nxPage = Math.min(max, Math.max(0, nxPage));
-            if (nxPage !== this.pageIndex) {
-                this.setCursor(0, nxPage * this.pageSize);
-                this.render();
-            }
+            let direction = key.name === "pagedown" ? 1 : -1;
+            this.scroll(direction, true);
+            this.moveCursor(direction === 1 ? "down" : "up");
         }
         // Any standard character
         else if (key.name.length === 1) {
@@ -227,7 +271,8 @@ class Editor {
                     this.append(" ");
                     break;
                 case "tab":
-                    this.append("  ");
+                    // this.append("  ");
+                    this.append("\t");
                     break;
                 case "home":
                     this.setCursor(0);
@@ -245,10 +290,10 @@ class Editor {
         }
     }
     setup() {
-        this.render(this.content);
-        keypress_1.default(stdin);
         stdin.setRawMode(true);
         stdin.resume();
+        keypress_1.default(stdin);
+        this.render(this.content);
         stdout.on("resize", () => this.render());
         stdin.on('keypress', (chunk, key) => {
             switch (this.mode) {
@@ -317,7 +362,8 @@ class Editor {
         const [w, h] = stdout.getWindowSize();
         this.width = w;
         this.height = h;
-        const pageSize = this.pageSize = Math.floor(h - 6);
+        this.pageSize = Math.floor(h - 6);
+        // this.pageSize = Math.min(content.length - 6, Math.floor(h - 6));
         stdout.cursorTo(0, 0);
         stdout.clearScreenDown();
         this.setTitle();
@@ -325,14 +371,23 @@ class Editor {
         this.drawLine();
         stdout.cursorTo(0, 2);
         stdout.clearScreenDown();
-        for (let i = this.pageIndex * pageSize; i < Math.min(content.length, (this.pageIndex + 1) * pageSize); i++) {
+        for (let i = this.scrollOffset; i < Math.min(content.length, this.scrollOffset + this.pageSize); i++) {
             const line = content[i];
             this.setLine(line, i);
         }
-        stdout.cursorTo(0, pageSize + 3);
-        // stdout.cursorTo(0, pageSize);
+        stdout.cursorTo(0, this.pageSize + 3);
+        // stdout.cursorTo(0, this.pageSize);
         this.drawLine();
         this.setCursor();
+    }
+    scroll(amount, render = true) {
+        let newScrolloffset = this.scrollOffset + (amount !== null && amount !== void 0 ? amount : 1);
+        newScrolloffset = Math.max(Math.min(this.content.length - this.pageSize, newScrolloffset), 0); // Clamp the value.
+        if (newScrolloffset !== this.scrollOffset) {
+            this.scrollOffset = newScrolloffset;
+            if (render)
+                this.render();
+        }
     }
     /**
      * Draw a line expanding the full width.
@@ -393,7 +448,11 @@ class Editor {
     delete(x = this.cursor.x, y = this.cursor.y) {
         const line = this.content[y];
         const p1 = line.substring(0, x);
-        const p2 = line.substring(x + 1);
+        let p2 = line.substring(x + 1);
+        if (!p2 && typeof this.content[y + 1] === "string") {
+            p2 = this.content[y + 1];
+            this.deleteLine(y + 1);
+        }
         this.setLine(p1 + p2, y);
     }
     setLine(lineContent, lineIndex = this.cursor.y) {
@@ -404,10 +463,12 @@ class Editor {
         stdout.write((lineIndex + 1).toString() + " ".repeat(this.indention - numLen - 2) + "|");
         this.setCursor(0, lineIndex);
         stdout.clearLine(1);
+        const filteredContent = lineContent.replace(/\t/g, " ".repeat(this.tabLength));
         if (this.LANG in Syntax_1.default && typeof Syntax_1.default[this.LANG] === "function")
-            stdout.write(Syntax_1.default[this.LANG](lineContent, lineIndex));
+            stdout.write(Syntax_1.default[this.LANG](filteredContent, lineIndex));
         else
-            stdout.write(lineContent);
+            stdout.write(filteredContent);
+        // else stdout.write(lineContent);
         this.content[lineIndex] = lineContent;
         this.setCursor(x, y);
     }
@@ -430,43 +491,59 @@ class Editor {
         this.setCursor(x, y);
     }
     setCursor(x = this.cursor.x, y = this.cursor.y) {
+        if (this.pageSize === undefined)
+            this.render();
+        x = x !== null && x !== void 0 ? x : this.cursor.x;
+        y = y !== null && y !== void 0 ? y : this.cursor.y;
+        const endOfFile = y === this.content.length;
+        if (x !== this.cursor.x) {
+            if (typeof this.content[y] === "string" && typeof this.content[y + 1] === "string" && x > this.content[y].length) {
+                x = 0;
+                y++;
+            }
+            if (typeof this.content[y] === "string" && typeof this.content[y - 1] === "string" && x < 0) {
+                x = this.content[--y].length;
+            }
+        }
         x = Math.max(0, x);
-        y = Math.max(0, y);
-        y = Math.min(this.content.length - 1, y);
-        const xTmp = Math.min(Math.max(0, x), this.content[y] ? this.content[y].length : 0);
-        const yTmp = Math.min(Math.max(0, y), this.content.length - 1);
+        y = Math.min(this.content.length - 1, Math.max(0, y));
+        const line = this.content[y];
+        const xTmp = Math.min(Math.max(0, x), line ? line.length : 0);
+        const yTmp = Math.min(Math.max(-1, y), this.scrollOffset + this.pageSize, this.content.length);
+        const scrollDirection = yTmp - this.scrollOffset === -1 ? -1 : yTmp === this.scrollOffset + this.pageSize || endOfFile ? 1 : 0;
         // if (this.cursor.x != x) this.lastCursorX = xTmp;
         this.cursor.x = xTmp;
         this.cursor.y = yTmp;
         // Actual cords
-        const nextPageIndex = Math.floor(this.cursor.y / this.pageSize);
         const [xReal, yReal] = [
             this.indention + this.cursor.x,
-            (y % this.pageSize) + 2
+            (y - this.scrollOffset) + 2
         ];
-        if (this.pageIndex != nextPageIndex) {
-            this.pageIndex = nextPageIndex;
-            this.render();
+        if (scrollDirection !== 0) {
+            this.scroll(scrollDirection, true);
+            // this.setCursor();
         }
-        stdout.cursorTo(xReal, yReal);
+        let tabs = line.slice(0, this.cursor.x).split("\t").length - 1;
+        stdout.cursorTo(xReal + (tabs * (this.tabLength - 1)), // + (Math.max(0, tabs - 1) * this.tabLength),
+        yReal - (endOfFile ? 0 : scrollDirection));
     }
     moveCursor(dir) {
         switch (dir) {
             case "up":
-                // stdout.moveCursor(0, this.cursor.y > 0 ? -1 : 0);
-                this.setCursor(this.cursor.x, --this.cursor.y);
+                this.setCursor(this.cursor.x, this.cursor.y - 1);
+                // this.setCursor(this.cursor.x, --this.cursor.y);
                 break;
             case "down":
-                // stdout.moveCursor(0, this.cursor.y < this.content.length -1 ? 1 : 0);
-                this.setCursor(this.cursor.x, ++this.cursor.y);
+                this.setCursor(this.cursor.x, this.cursor.y + 1);
+                // this.setCursor(this.cursor.x, ++this.cursor.y);
                 break;
             case "left":
-                // stdout.moveCursor(this.cursor.x > 0 ? -1 : 0, 0);
-                this.setCursor(--this.cursor.x, this.cursor.y);
+                this.setCursor(this.cursor.x - 1, this.cursor.y);
+                // this.setCursor(--this.cursor.x, this.cursor.y);
                 break;
             case "right":
-                // stdout.moveCursor(this.cursor.x < this.content.length -1 ? 1 : 0, 0);
-                this.setCursor(++this.cursor.x, this.cursor.y);
+                this.setCursor(this.cursor.x + 1, this.cursor.y);
+                // this.setCursor(++this.cursor.x, this.cursor.y);
                 break;
             default:
                 break;
