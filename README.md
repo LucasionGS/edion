@@ -8,7 +8,7 @@ It has a couple programming langages with Syntax highlighting, and more will be 
 npm install -g edion
 ```
 
-## Using without installing
+## Use it without installing
 
 ```bash
 npx edion [...]
