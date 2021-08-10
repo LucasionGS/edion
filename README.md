@@ -8,6 +8,12 @@ It has a couple programming langages with Syntax highlighting, and more will be 
 npm install -g edion
 ```
 
+## Using without installing
+
+```bash
+npx edion [...]
+```
+
 ## Usage
 Open any text file with the command
 ```bash
