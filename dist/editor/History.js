@@ -10,7 +10,7 @@ exports.default = new class History {
     constructor() {
         this.maxSize = 10;
         this.location = path_1.default.resolve(os_1.default.homedir(), ".edionhistory");
-        this.history = fs_1.existsSync(this.location) ? JSON.parse(fs_1.readFileSync(this.location, "utf8")) : [];
+        this.history = (0, fs_1.existsSync)(this.location) ? JSON.parse((0, fs_1.readFileSync)(this.location, "utf8")) : [];
     }
     add(path) {
         let lastIndex = this.history.indexOf(path);
@@ -19,7 +19,7 @@ exports.default = new class History {
         this.history.unshift(path);
         if (this.history.length > this.maxSize)
             this.history.splice(this.maxSize);
-        fs_1.writeFileSync(this.location, JSON.stringify(this.history));
+        (0, fs_1.writeFileSync)(this.location, JSON.stringify(this.history));
     }
     getHistory() {
         return this.history.slice();

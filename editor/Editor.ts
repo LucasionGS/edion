@@ -26,7 +26,7 @@ export default class Editor {
 
   constructor(private filePath: string, args: string[] = []) {
     // Is SSH?
-    let isSSHPathRegex = /^(?:(\w+)?@)?(.+):(.*)/;
+    let isSSHPathRegex = /^(?:(\w+)?@)?(.{2,}):(.*)/;
     this.LANG = (() => {
       const langCmd = "--lang=";
       const arg = args.find(arg => arg.startsWith(langCmd));
@@ -493,7 +493,7 @@ export default class Editor {
     const p2 = line.substring(x);
     if (x > 0) {
       this.setLine(p1 + p2);
-      if (x != line.length) this.moveCursor("left");
+      this.moveCursor("left");
     }
     else if (y > 0) {
       const len = this.content[y - 1].length;

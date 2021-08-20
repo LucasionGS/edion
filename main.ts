@@ -1,6 +1,6 @@
 import Editor from "./editor/Editor";
 import History from "./editor/History";
-import Syntax from "./editor/Syntax";
+import Syntax, { getLanguageName } from "./editor/Syntax";
 
 export default async function main(args: string[]) {
   { // Block because why not
@@ -18,18 +18,28 @@ export default async function main(args: string[]) {
 
     // Special params
     if (first == "--langs") {
+      let longest = 0;
       return console.log(
         [
           "Supported Languages".underline.bold,
           ...(() => {
-            const langs: string[] = [];
-            let key: string;
+            const langs: [string, string][] = [];
+            let key: keyof typeof Syntax;
+            let keyPairValues: { [description: string]: string[] } = {};
             for (key in Syntax) {
-              if (!(key in Syntax) || key.startsWith("__") || typeof (Syntax as any)[key] !== "function") continue;
-              langs.push(key);
+              if (!(key in Syntax) || key.startsWith("__") || typeof Syntax[key] !== "function") continue;
+              let desc = getLanguageName(key);
+              if (!keyPairValues[desc]) keyPairValues[desc] = [];
+              keyPairValues[desc].push(key);
+            }
+            
+            for (let description in keyPairValues) {
+              let languages = keyPairValues[description].join("/");
+              if (languages.length > longest) longest = languages.length;
+              langs.push([ languages, description ]);
             }
             return langs;
-          })()
+          })().map(l => l[0] + " ".repeat(longest - l[0].length) + " | " + l[1])
         ].join("\n")
       )
     }
