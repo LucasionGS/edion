@@ -1,6 +1,6 @@
 {
     "name": "edion",
-    "version": "1.0.3",
+    "version": "1.0.5",
     "main": "dist/main.js",
     "bin": {
         "edi": "dist/bin/cli.js"

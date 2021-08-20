@@ -8,7 +8,9 @@ function createFunc(...functions: LanguageFunction[]) {
   }
 }
 
-export default new class Syntax {
+type LanguageFunction = (line: string, i?: number) => string;
+
+class Syntax {
   //# Common Regexes
   private __SHEBANG = (line: string, i: number) => i === 0 ? line.replace(/^#!.*/, "$&".gray) : line;
 
@@ -41,7 +43,7 @@ export default new class Syntax {
   private __REGEXP = (line: string) => line.replace(
     /(\b|^|\s+)(\/.+\/([gis]*))(\b|$|\s+)/g,
     Colors.BrightRed("$&"));
-
+    
   // Languages
   /**
    * JavaScript Objection Notation
@@ -196,4 +198,36 @@ export default new class Syntax {
   );
 }
 
-type LanguageFunction = (line: string, i?: number) => string;
+export default new Syntax();
+
+export function getLanguageName(lang: keyof Syntax) {
+  switch (lang) {
+    case "c": return "C";
+
+    case "ino":
+    case "cpp":
+    case "cc": return "C++";
+
+    case "cs": return "C#";
+
+    case "htm":
+    case "html": return "HTML (HyperText Markdown Language)";
+
+    case "inf":
+    case "ini": return "INI";
+    
+    case "js": return "JavaScript";
+    case "ts": return "TypeScript";
+
+    case "json": return "JSON (JavaScript Object Notation)";
+
+    case "lua": return "LUA";
+    
+    case "php": return "PHP (Php Hypertext Preprocessor)";
+
+    case "py": return "Python";
+
+    case "sh": return "Shell Script / Bash";
+  }
+  return null;
+}

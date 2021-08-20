@@ -26,11 +26,16 @@ edi <path> --lang=<extension>
 
 ## Supported Syntax Highlighting
 ```
-TypeScript/JavaScript
-JSON
-C#
-C/C++ (Arduino .ino files, as well)
-Bash script
-Lua
-Ini/inf
+json       | JSON (JavaScript Object Notation)
+ts         | TypeScript
+js         | JavaScript
+cs         | C#
+c          | C
+cc/cpp/ino | C++
+sh         | Shell Script / Bash
+lua        | LUA
+py         | Python
+ini/inf    | INI
+html/htm   | HTML (HyperText Markdown Language)
+php        | PHP (Php Hypertext Preprocessor)
 ```

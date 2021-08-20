@@ -33,7 +33,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const Editor_1 = __importDefault(require("./editor/Editor"));
 const History_1 = __importDefault(require("./editor/History"));
-const Syntax_1 = __importDefault(require("./editor/Syntax"));
+const Syntax_1 = __importStar(require("./editor/Syntax"));
 function main(args) {
     return __awaiter(this, void 0, void 0, function* () {
         { // Block because why not
@@ -49,18 +49,29 @@ function main(args) {
                 });
             // Special params
             if (first == "--langs") {
+                let longest = 0;
                 return console.log([
                     "Supported Languages".underline.bold,
                     ...(() => {
                         const langs = [];
                         let key;
+                        let keyPairValues = {};
                         for (key in Syntax_1.default) {
                             if (!(key in Syntax_1.default) || key.startsWith("__") || typeof Syntax_1.default[key] !== "function")
                                 continue;
-                            langs.push(key);
+                            let desc = (0, Syntax_1.getLanguageName)(key);
+                            if (!keyPairValues[desc])
+                                keyPairValues[desc] = [];
+                            keyPairValues[desc].push(key);
+                        }
+                        for (let description in keyPairValues) {
+                            let languages = keyPairValues[description].join("/");
+                            if (languages.length > longest)
+                                longest = languages.length;
+                            langs.push([languages, description]);
                         }
                         return langs;
-                    })()
+                    })().map(l => l[0] + " ".repeat(longest - l[0].length) + " | " + l[1])
                 ].join("\n"));
             }
             else if (first === "--history" || first === "-h") {

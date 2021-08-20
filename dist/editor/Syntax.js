@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getLanguageName = void 0;
 require("colors");
 const Colors_1 = __importDefault(require("./Colors"));
 function createFunc(...functions) {
@@ -11,7 +12,7 @@ function createFunc(...functions) {
         return line;
     };
 }
-exports.default = new class Syntax {
+class Syntax {
     constructor() {
         //# Common Regexes
         this.__SHEBANG = (line, i) => i === 0 ? line.replace(/^#!.*/, "$&".gray) : line;
@@ -89,5 +90,28 @@ exports.default = new class Syntax {
          */
         this.php = createFunc(this.html, this.__SHEBANG, this.__DOUBLE_SLASH_LINE_COMMENT, this.__SLASH_STAR_BLOCK_COMMENT, this.__BACKTICK_QUOTES, this.__OOP_KEYWORDS, this.__DYNAMIC_KEYWORDS, this.__STATIC_KEYWORDS, this.__PRIMITIVE_VALUES, this.__FUNCTIONS, this.__REGEXP);
     }
-};
+}
+exports.default = new Syntax();
+function getLanguageName(lang) {
+    switch (lang) {
+        case "c": return "C";
+        case "ino":
+        case "cpp":
+        case "cc": return "C++";
+        case "cs": return "C#";
+        case "htm":
+        case "html": return "HTML (HyperText Markdown Language)";
+        case "inf":
+        case "ini": return "INI";
+        case "js": return "JavaScript";
+        case "ts": return "TypeScript";
+        case "json": return "JSON (JavaScript Object Notation)";
+        case "lua": return "LUA";
+        case "php": return "PHP (Php Hypertext Preprocessor)";
+        case "py": return "Python";
+        case "sh": return "Shell Script / Bash";
+    }
+    return null;
+}
+exports.getLanguageName = getLanguageName;
 //# sourceMappingURL=Syntax.js.map
