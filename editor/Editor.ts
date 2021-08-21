@@ -147,6 +147,13 @@ export default class Editor {
       this.clipboard = this.getCurrentLine();
       this.setMessage("Copied line to temporary clipboard");
     }
+    
+    // Toggle line numbers
+    else if (key.ctrl && (key.name == "l")) {
+      this.showLineNumbers = !this.showLineNumbers;
+      this.setMessage(`Line numbers are now ${this.showLineNumbers ? "shown" : "hidden"}`);
+      this.render();
+    }
 
     // Paste line
     else if (key.ctrl && (key.name == "v")) {
@@ -399,6 +406,7 @@ export default class Editor {
   private height: number;
   private pageSize: number;
   private indention = 2;
+  private showLineNumbers = true;
 
   public render(content = this.content) {
 
@@ -476,7 +484,7 @@ export default class Editor {
   public enter(x = this.cursor.x, y = this.cursor.y) {
     const line = this.content[y];
     let spaceCount = 0;
-    while (line.substring(spaceCount, spaceCount + 1) === " ") spaceCount++;
+    // while (line.substring(spaceCount, spaceCount + 1) === " ") spaceCount++; // Count the spaces before the cursor.
     const p1c = this.content.slice(0, y);
     const p2c = this.content.slice(y + 1);
     const p1 = line.substring(0, x);
@@ -521,7 +529,7 @@ export default class Editor {
     this.setCursor(0, lineIndex);
     stdout.cursorTo(0);
     const numLen = (lineIndex + 1).toString().length;
-    stdout.write((lineIndex + 1).toString() + " ".repeat(this.indention - numLen - 2) + "|")
+    if (this.showLineNumbers) stdout.write((lineIndex + 1).toString() + " ".repeat(this.indention - numLen - 2) + "|");
     this.setCursor(0, lineIndex);
     stdout.clearLine(1);
 
@@ -589,7 +597,7 @@ export default class Editor {
     
     // Actual cords
     const [xReal, yReal] = [
-      this.indention + this.cursor.x,
+      (this.showLineNumbers ? this.indention : 0) + this.cursor.x,
       (y - this.scrollOffset) + 2
     ];
     if (scrollDirection !== 0) {
