@@ -16,10 +16,13 @@ export enum EditorMode {
 export default class Editor {
   private readonly DEBUG: boolean;
   private readonly LANG: string;
+  private readonly EOL: string;
   private mode: EditorMode = EditorMode.Edit;
   private ssh: NodeSSH = null;
   private tempSSHpath: string = null;
   private tabLength = 4;
+  private spacePerTab = 2;
+  private useTabs = false;
   private isSSH() {
     return this.ssh != null;
   }
@@ -32,6 +35,12 @@ export default class Editor {
       const arg = args.find(arg => arg.startsWith(langCmd));
       if (!arg) return Path.extname(this.filePath).substring(1);
       return arg.substring(langCmd.length);
+    })();
+    this.EOL = (() => {
+      const eolCmd = "--eol=";
+      const arg = args.find(arg => arg.startsWith(eolCmd));
+      if (!arg) return os.EOL;
+      return this.getEOL(arg.substring(eolCmd.length));
     })();
     if (!isSSHPathRegex.test(this.filePath)) {
       // Local file
@@ -152,6 +161,13 @@ export default class Editor {
     else if (key.ctrl && (key.name == "l")) {
       this.showLineNumbers = !this.showLineNumbers;
       this.setMessage(`Line numbers are now ${this.showLineNumbers ? "shown" : "hidden"}`);
+      this.render();
+    }
+    
+    // Toggle tabs or spaces
+    else if (key.ctrl && (key.name == "t")) {
+      this.useTabs = !this.useTabs;
+      this.setMessage(`Tabs are now ${this.useTabs ? "tab" : "space"} characters`);
       this.render();
     }
 
@@ -285,8 +301,7 @@ export default class Editor {
           this.append(" ");
           break;
         case "tab":
-          // this.append("  ");
-          this.append("\t");
+          this.useTabs ? this.append("\t") : this.append(" ".repeat(this.spacePerTab));
           break;
         case "home":
           this.setCursor(0);
@@ -338,8 +353,12 @@ export default class Editor {
   private scrollOffset = 0;
   private clipboard: string;
 
+  private getEOL(platform: string): string {
+    return platform === "win32" || platform === "win" ? "\r\n" : "\n";
+  }
+
   public async save() {
-    const content = this.content.join(os.EOL);
+    const content = this.content.join(this.EOL);
     return new Promise(async (resolve, reject) => {
       if (!this.isSSH()) {
         fs.writeFile(

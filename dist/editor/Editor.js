@@ -33,6 +33,8 @@ class Editor {
         this.ssh = null;
         this.tempSSHpath = null;
         this.tabLength = 4;
+        this.spacePerTab = 2;
+        this.useTabs = false;
         this.scrollOffset = 0;
         this.justSaved = true;
         this.content = [];
@@ -52,6 +54,13 @@ class Editor {
             if (!arg)
                 return path_1.default.extname(this.filePath).substring(1);
             return arg.substring(langCmd.length);
+        })();
+        this.EOL = (() => {
+            const eolCmd = "--eol=";
+            const arg = args.find(arg => arg.startsWith(eolCmd));
+            if (!arg)
+                return os_1.default.EOL;
+            return this.getEOL(arg.substring(eolCmd.length));
         })();
         if (!isSSHPathRegex.test(this.filePath)) {
             // Local file
@@ -160,6 +169,12 @@ class Editor {
         else if (key.ctrl && (key.name == "l")) {
             this.showLineNumbers = !this.showLineNumbers;
             this.setMessage(`Line numbers are now ${this.showLineNumbers ? "shown" : "hidden"}`);
+            this.render();
+        }
+        // Toggle tabs or spaces
+        else if (key.ctrl && (key.name == "t")) {
+            this.useTabs = !this.useTabs;
+            this.setMessage(`Tabs are now ${this.useTabs ? "tab" : "space"} characters`);
             this.render();
         }
         // Paste line
@@ -278,8 +293,7 @@ class Editor {
                     this.append(" ");
                     break;
                 case "tab":
-                    // this.append("  ");
-                    this.append("\t");
+                    this.useTabs ? this.append("\t") : this.append(" ".repeat(this.spacePerTab));
                     break;
                 case "home":
                     this.setCursor(0);
@@ -317,9 +331,12 @@ class Editor {
     getCurrentLineIndex() {
         return this.cursor.y;
     }
+    getEOL(platform) {
+        return platform === "win32" || platform === "win" ? "\r\n" : "\n";
+    }
     save() {
         return __awaiter(this, void 0, void 0, function* () {
-            const content = this.content.join(os_1.default.EOL);
+            const content = this.content.join(this.EOL);
             return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
                 if (!this.isSSH()) {
                     fs_1.default.writeFile(this.filePath, content, err => {
