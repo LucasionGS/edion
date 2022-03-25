@@ -15,32 +15,32 @@ function createFunc(...functions) {
 class Syntax {
     constructor() {
         //# Common Regexes
-        this.__SHEBANG = (line, i) => i === 0 ? line.replace(/^#!.*/, "$&".gray) : line;
+        this.SHEBANG = (line, i) => i === 0 ? line.replace(/^#!.*/, "$&".gray) : line;
         // Quotes
-        this.__DOUBLE_QUOTES = (line) => line.replace(/"[^"\\\\]*(?:\\\\.[^"\\\\]*)*"/sg, "$&".gray);
-        this.__SINGLE_QUOTES = (line) => line.replace(/'[^'\\\\]*(?:\\\\.[^'\\\\]*)*'/sg, "$&".gray);
+        this.DOUBLE_QUOTES = (line) => line.replace(/"[^"\\\\]*(?:\\\\.[^"\\\\]*)*"/sg, "$&".gray);
+        this.SINGLE_QUOTES = (line) => line.replace(/'[^'\\\\]*(?:\\\\.[^'\\\\]*)*'/sg, "$&".gray);
         // Comments
-        this.__BACKTICK_QUOTES = (line) => line.replace(/`[^`\\\\]*(?:\\\\.[^`\\\\]*)*`/sg, "$&".gray);
-        this.__SLASH_STAR_BLOCK_COMMENT = (line) => line.replace(/\/\*.*\*\//g, "$&".green);
-        this.__DOUBLE_SLASH_LINE_COMMENT = (line) => line.replace(/\/\/.*/g, "$&".green);
-        this.__DOUBLE_DASH_LINE_COMMENT = (line) => line.replace(/\-\-.*/g, "$&".green);
-        this.__POUNDSIGN_LINE_COMMENT = (line) => line.replace(/#.*/g, "$&".green);
-        this.__FUNCTIONS = (line) => line.replace(/[^\.\s\(\)]+(?=\()/g, Colors_1.default.BrightYellow("$&"));
-        this.__OOP_KEYWORDS = (line) => line.replace(/(\b|^|\s+)(else|if|import|from|export|default|this|class|delete|public|private|protected|function|return|for|in|of|switch|case|break|continue|interface|namespace|use|using|type|as|static|unsigned|signed)\b/g, Colors_1.default.Cyan("$&"));
-        this.__DYNAMIC_KEYWORDS = (line) => line.replace(/(\b|^|\s+)(var|let|const)\b/g, "$&".cyan);
-        this.__STATIC_KEYWORDS = (line) => line.replace(/(\b|^|\s+)(int|string|bool|boolean|char|long)\b/g, "$&".cyan);
-        this.__PRIMITIVE_VALUES = (line) => line.replace(/(\b|^|\s+)(\d+(?:\.\d+)?|true|false|null|undefined|void)\b/g, "$&".blue);
-        this.__DASH_PARAMETER = (line) => line.replace(/(\b|^|\s+)(-[\S]*)\b/g, "$&".gray);
-        this.__REGEXP = (line) => line.replace(/(\b|^|\s+)(\/.+\/([gis]*))(\b|$|\s+)/g, Colors_1.default.BrightRed("$&"));
+        this.BACKTICK_QUOTES = (line) => line.replace(/`[^`\\\\]*(?:\\\\.[^`\\\\]*)*`/sg, "$&".gray);
+        this.SLASH_STAR_BLOCK_COMMENT = (line) => line.replace(/\/\*.*\*\//g, "$&".green);
+        this.DOUBLE_SLASH_LINE_COMMENT = (line) => line.replace(/\/\/.*/g, "$&".green);
+        this.DOUBLE_DASH_LINE_COMMENT = (line) => line.replace(/\-\-.*/g, "$&".green);
+        this.POUNDSIGN_LINE_COMMENT = (line) => line.replace(/#.*/g, "$&".green);
+        this.FUNCTIONS = (line) => line.replace(/[^\.\s\(\)]+(?=\()/g, Colors_1.default.brightYellow("$&"));
+        this.OOP_KEYWORDS = (line) => line.replace(/(\b|^|\s+)(else|if|import|from|export|default|this|class|delete|public|private|protected|function|return|for|in|of|switch|case|break|continue|interface|namespace|use|using|type|as|static|unsigned|signed)\b/g, Colors_1.default.cyan("$&"));
+        this.DYNAMIC_KEYWORDS = (line) => line.replace(/(\b|^|\s+)(var|let|const)\b/g, "$&".cyan);
+        this.STATIC_KEYWORDS = (line) => line.replace(/(\b|^|\s+)(int|string|bool|boolean|char|long)\b/g, "$&".cyan);
+        this.PRIMITIVE_VALUES = (line) => line.replace(/(\b|^|\s+)(\d+(?:\.\d+)?|true|false|null|undefined|void)\b/g, "$&".blue);
+        this.DASH_PARAMETER = (line) => line.replace(/(\b|^|\s+)(-[\S]*)\b/g, "$&".gray);
+        this.REGEXP = (line) => line.replace(/(\b|^|\s+)(\/.+\/([gis]*))(\b|$|\s+)/g, Colors_1.default.brightRed("$&"));
         // Languages
         /**
          * JavaScript Objection Notation
          */
-        this.json = createFunc(this.__DOUBLE_SLASH_LINE_COMMENT, this.__DOUBLE_QUOTES, this.__PRIMITIVE_VALUES);
+        this.json = createFunc(this.DOUBLE_SLASH_LINE_COMMENT, this.DOUBLE_QUOTES, this.PRIMITIVE_VALUES);
         /**
          * TypeScript
          */
-        this.ts = createFunc(this.__SHEBANG, this.__DOUBLE_SLASH_LINE_COMMENT, this.__SLASH_STAR_BLOCK_COMMENT, this.__DOUBLE_QUOTES, this.__SINGLE_QUOTES, this.__BACKTICK_QUOTES, this.__OOP_KEYWORDS, this.__DYNAMIC_KEYWORDS, this.__STATIC_KEYWORDS, this.__PRIMITIVE_VALUES, this.__FUNCTIONS, this.__REGEXP);
+        this.ts = createFunc(this.SHEBANG, this.DOUBLE_SLASH_LINE_COMMENT, this.SLASH_STAR_BLOCK_COMMENT, this.DOUBLE_QUOTES, this.SINGLE_QUOTES, this.BACKTICK_QUOTES, this.OOP_KEYWORDS, this.DYNAMIC_KEYWORDS, this.STATIC_KEYWORDS, this.PRIMITIVE_VALUES, this.FUNCTIONS, this.REGEXP);
         /**
          * JavaScript.
          *
@@ -50,37 +50,37 @@ class Syntax {
         /**
          * C#/CSharp
          */
-        this.cs = createFunc(this.__DOUBLE_SLASH_LINE_COMMENT, this.__SLASH_STAR_BLOCK_COMMENT, this.__DOUBLE_QUOTES, this.__SINGLE_QUOTES, this.__OOP_KEYWORDS, this.__DYNAMIC_KEYWORDS, this.__STATIC_KEYWORDS, this.__PRIMITIVE_VALUES, this.__FUNCTIONS);
+        this.cs = createFunc(this.DOUBLE_SLASH_LINE_COMMENT, this.SLASH_STAR_BLOCK_COMMENT, this.DOUBLE_QUOTES, this.SINGLE_QUOTES, this.OOP_KEYWORDS, this.DYNAMIC_KEYWORDS, this.STATIC_KEYWORDS, this.PRIMITIVE_VALUES, this.FUNCTIONS);
         /**
          * C/C++/ino
          */
-        this.c = createFunc(this.__DOUBLE_SLASH_LINE_COMMENT, this.__SLASH_STAR_BLOCK_COMMENT, this.__DOUBLE_QUOTES, this.__SINGLE_QUOTES, this.__OOP_KEYWORDS, this.__DYNAMIC_KEYWORDS, this.__STATIC_KEYWORDS, this.__PRIMITIVE_VALUES, this.__FUNCTIONS);
+        this.c = createFunc(this.DOUBLE_SLASH_LINE_COMMENT, this.SLASH_STAR_BLOCK_COMMENT, this.DOUBLE_QUOTES, this.SINGLE_QUOTES, this.OOP_KEYWORDS, this.DYNAMIC_KEYWORDS, this.STATIC_KEYWORDS, this.PRIMITIVE_VALUES, this.FUNCTIONS);
         this.cc = this.c;
         this.cpp = this.c;
         this.ino = this.c;
         /**
          * Bourne-again shell / Bash
          */
-        this.sh = createFunc(this.__POUNDSIGN_LINE_COMMENT, this.__PRIMITIVE_VALUES, this.__DASH_PARAMETER);
+        this.sh = createFunc(this.POUNDSIGN_LINE_COMMENT, this.PRIMITIVE_VALUES, this.DASH_PARAMETER);
         /**
          * LUA
          */
-        this.lua = createFunc(this.__DOUBLE_DASH_LINE_COMMENT, this.__OOP_KEYWORDS, (line) => line.replace(// adds more lua keyword highlighting
-        /(\b|^|\s+)(local|then|end)\b/g, Colors_1.default.BrightCyan("$&")), this.__PRIMITIVE_VALUES, this.__FUNCTIONS, this.__DOUBLE_QUOTES, this.__SINGLE_QUOTES);
+        this.lua = createFunc(this.DOUBLE_DASH_LINE_COMMENT, this.OOP_KEYWORDS, (line) => line.replace(// adds more lua keyword highlighting
+        /(\b|^|\s+)(local|then|end)\b/g, Colors_1.default.brightCyan("$&")), this.PRIMITIVE_VALUES, this.FUNCTIONS, this.DOUBLE_QUOTES, this.SINGLE_QUOTES);
         /**
          * Python
          */
-        this.py = createFunc(this.__POUNDSIGN_LINE_COMMENT, this.__OOP_KEYWORDS, (line) => line.replace(// adds more lua keyword highlighting
-        /(\b|^|\s+)(local|then|end)\b/g, Colors_1.default.BrightCyan("$&")), this.__PRIMITIVE_VALUES, line => line.replace(/(\b|^|\s+)(def|define)\b/g, "$&".cyan), this.__FUNCTIONS, this.__DOUBLE_QUOTES, this.__SINGLE_QUOTES);
+        this.py = createFunc(this.POUNDSIGN_LINE_COMMENT, this.OOP_KEYWORDS, (line) => line.replace(// adds more lua keyword highlighting
+        /(\b|^|\s+)(local|then|end)\b/g, Colors_1.default.brightCyan("$&")), this.PRIMITIVE_VALUES, line => line.replace(/(\b|^|\s+)(def|define)\b/g, "$&".cyan), this.FUNCTIONS, this.DOUBLE_QUOTES, this.SINGLE_QUOTES);
         /**
          * Ini data file
          */
-        this.ini = createFunc(this.__POUNDSIGN_LINE_COMMENT, line => line.replace(/^\s*\[.*?\]/g, "$&".bgBlue), line => line.replace(/^\s*\w+/g, "$&".cyan));
+        this.ini = createFunc(this.POUNDSIGN_LINE_COMMENT, line => line.replace(/^\s*\[.*?\]/g, "$&".bgBlue), line => line.replace(/^\s*\w+/g, "$&".cyan));
         this.inf = this.ini;
         /**
          * HTML file
          */
-        this.html = createFunc(this.__SINGLE_QUOTES, this.__DOUBLE_QUOTES, line => line.replace(/(?<=<)\/?[-\w]+(?=.*?>)?/g, "$&".cyan));
+        this.html = createFunc(this.SINGLE_QUOTES, this.DOUBLE_QUOTES, line => line.replace(/(?<=<)\/?[-\w]+(?=.*?>)?/g, "$&".cyan));
         /**
          * HTM file
          */
@@ -88,7 +88,7 @@ class Syntax {
         /**
          * PHP file
          */
-        this.php = createFunc(this.html, this.__SHEBANG, this.__DOUBLE_SLASH_LINE_COMMENT, this.__SLASH_STAR_BLOCK_COMMENT, this.__BACKTICK_QUOTES, this.__OOP_KEYWORDS, this.__DYNAMIC_KEYWORDS, this.__STATIC_KEYWORDS, this.__PRIMITIVE_VALUES, this.__FUNCTIONS, this.__REGEXP);
+        this.php = createFunc(this.html, this.SHEBANG, this.DOUBLE_SLASH_LINE_COMMENT, this.SLASH_STAR_BLOCK_COMMENT, this.BACKTICK_QUOTES, this.OOP_KEYWORDS, this.DYNAMIC_KEYWORDS, this.STATIC_KEYWORDS, this.PRIMITIVE_VALUES, this.FUNCTIONS, this.REGEXP);
     }
 }
 exports.default = new Syntax();
@@ -110,8 +110,8 @@ function getLanguageName(lang) {
         case "php": return "PHP (Php Hypertext Preprocessor)";
         case "py": return "Python";
         case "sh": return "Shell Script / Bash";
+        default: return null;
     }
-    return null;
 }
 exports.getLanguageName = getLanguageName;
 //# sourceMappingURL=Syntax.js.map

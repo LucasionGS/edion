@@ -1,90 +1,90 @@
-export default new class Colors {
+export default class Colors {
   
   
-  private _Reset = "\u001b[0m";
-  Reset(str: string) {
-    return this._Reset + str + this._Reset;
+  private static _reset = "\u001b[0m";
+  public static reset(str: string) {
+    return Colors._reset + str + Colors._reset;
   }
 
   // Regular colors
-  private _Black = "\u001b[30m";
-  Black(str: string) {
-    return this._Black + str + this._Reset;
+  private static _black = "\u001b[30m";
+  public static black(str: string) {
+    return Colors._black + str + Colors._reset;
   }
 
-  private _Red = "\u001b[31m";
-  Red(str: string) {
-    return this._Red + str + this._Reset;
+  private static _red = "\u001b[31m";
+  public static red(str: string) {
+    return Colors._red + str + Colors._reset;
   }
 
-  private _Green = "\u001b[32m";
-  Green(str: string) {
-    return this._Green + str + this._Reset;
+  private static _green = "\u001b[32m";
+  public static green(str: string) {
+    return Colors._green + str + Colors._reset;
   }
 
-  private _Yellow = "\u001b[33m";
-  Yellow(str: string) {
-    return this._Yellow + str + this._Reset;
+  private static _yellow = "\u001b[33m";
+  public static yellow(str: string) {
+    return Colors._yellow + str + Colors._reset;
   }
 
-  private _Blue = "\u001b[34m";
-  Blue(str: string) {
-    return this._Blue + str + this._Reset;
+  private static _blue = "\u001b[34m";
+  public static blue(str: string) {
+    return Colors._blue + str + Colors._reset;
   }
 
-  private _Magenta = "\u001b[35m";
-  Magenta(str: string) {
-    return this._Magenta + str + this._Reset;
+  private static _magenta = "\u001b[35m";
+  public static magenta(str: string) {
+    return Colors._magenta + str + Colors._reset;
   }
 
-  private _Cyan = "\u001b[36m";
-  Cyan(str: string) {
-    return this._Cyan + str + this._Reset;
+  private static _cyan = "\u001b[36m";
+  public static cyan(str: string) {
+    return Colors._cyan + str + Colors._reset;
   }
 
-  private _White = "\u001b[37m";
-  White(str: string) {
-    return this._White + str + this._Reset;
+  private static _white = "\u001b[37m";
+  public static white(str: string) {
+    return Colors._white + str + Colors._reset;
   }
 
   // Bright colors
-  private _BrightBlack = "\u001b[30;1m";
-  BrightBlack(str: string) {
-    return this._BrightBlack + str + this._Reset;
+  private static _brightBlack = "\u001b[30;1m";
+  public static brightBlack(str: string) {
+    return Colors._brightBlack + str + Colors._reset;
   }
   
-  private _BrightRed = "\u001b[31;1m";
-  BrightRed(str: string) {
-    return this._BrightRed + str + this._Reset;
+  private static _brightRed = "\u001b[31;1m";
+  public static brightRed(str: string) {
+    return Colors._brightRed + str + Colors._reset;
   }
   
-  private _BrightGreen = "\u001b[32;1m";
-  BrightGreen(str: string) {
-    return this._BrightGreen + str + this._Reset;
+  private static _brightGreen = "\u001b[32;1m";
+  public static brightGreen(str: string) {
+    return Colors._brightGreen + str + Colors._reset;
   }
   
-  private _BrightYellow = "\u001b[33;1m";
-  BrightYellow(str: string) {
-    return this._BrightYellow + str + this._Reset;
+  private static _brightYellow = "\u001b[33;1m";
+  public static brightYellow(str: string) {
+    return Colors._brightYellow + str + Colors._reset;
   }
   
-  private _BrightBlue = "\u001b[34;1m";
-  BrightBlue(str: string) {
-    return this._BrightBlue + str + this._Reset;
+  private static _brightBlue = "\u001b[34;1m";
+  public static brightBlue(str: string) {
+    return Colors._brightBlue + str + Colors._reset;
   }
   
-  private _BrightMagenta = "\u001b[35;1m";
-  BrightMagenta(str: string) {
-    return this._BrightMagenta + str + this._Reset;
+  private static _brightMagenta = "\u001b[35;1m";
+  public static brightMagenta(str: string) {
+    return Colors._brightMagenta + str + Colors._reset;
   }
   
-  private _BrightCyan = "\u001b[36;1m";
-  BrightCyan(str: string) {
-    return this._BrightCyan + str + this._Reset;
+  private static _brightCyan = "\u001b[36;1m";
+  public static brightCyan(str: string) {
+    return Colors._brightCyan + str + Colors._reset;
   }
   
-  private _BrightWhite = "\u001b[37;1m";
-  BrightWhite(str: string) {
-    return this._BrightWhite + str + this._Reset;
+  private static _brightWhite = "\u001b[37;1m";
+  public static brightWhite(str: string) {
+    return Colors._brightWhite + str + Colors._reset;
   }
 }

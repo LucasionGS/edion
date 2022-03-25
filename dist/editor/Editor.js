@@ -457,8 +457,11 @@ class Editor {
         const p1 = line.substring(0, x - 1);
         const p2 = line.substring(x);
         if (x > 0) {
+            // If not last line
             this.setLine(p1 + p2);
-            this.moveCursor("left");
+            if (y !== this.content.length - 1 || x !== line.length) {
+                this.moveCursor("left");
+            }
         }
         else if (y > 0) {
             const len = this.content[y - 1].length;
@@ -470,8 +473,9 @@ class Editor {
     delete(x = this.cursor.x, y = this.cursor.y) {
         const line = this.content[y];
         const p1 = line.substring(0, x);
+        const toDelete = line.substring(x, x + 1);
         let p2 = line.substring(x + 1);
-        if (!p2 && typeof this.content[y + 1] === "string") {
+        if (!toDelete && !p2 && typeof this.content[y + 1] === "string") {
             p2 = this.content[y + 1];
             this.deleteLine(y + 1);
         }
